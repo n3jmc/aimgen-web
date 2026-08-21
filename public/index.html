@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Image Gen — Smart Prompt</title>
+    <title>AI Image Gen — 10x</title>
     <style>
         * {
             box-sizing: border-box;
@@ -23,7 +23,7 @@
             background: #1a1a2e;
             padding: 30px;
             border-radius: 28px;
-            max-width: 680px;
+            max-width: 800px;
             width: 100%;
             text-align: center;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
@@ -107,55 +107,7 @@
             transform: none;
             box-shadow: 0 6px 0 #4f3a9e;
         }
-        .image-wrapper {
-            position: relative;
-            margin-top: 20px;
-            border-radius: 16px;
-            overflow: hidden;
-            background: #222;
-        }
-        #result {
-            display: block;
-            width: 100%;
-            height: auto;
-            min-height: 200px;
-            object-fit: cover;
-            transition: opacity 0.3s;
-            border: 2px solid #333;
-            border-radius: 16px;
-        }
-        .image-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            border-radius: 16px;
-            color: #fff;
-            gap: 12px;
-            backdrop-filter: blur(2px);
-        }
-        .image-overlay .spinner {
-            width: 48px;
-            height: 48px;
-            border: 4px solid #333;
-            border-top: 4px solid #7c5cfc;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-        .image-overlay .label {
-            font-size: 1.1rem;
-            font-weight: 500;
-            color: #ccc;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+
         .prep-wrapper {
             margin-top: 20px;
             text-align: left;
@@ -238,12 +190,46 @@
             background: #7c5cfc;
             border-radius: 10px;
         }
+
         .error-msg {
             color: #ff4757;
             margin-top: 10px;
             font-size: 0.9rem;
             display: none;
         }
+
+        /* ---- Gallery ---- */
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .gallery img {
+            width: 100%;
+            aspect-ratio: 1/1;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 2px solid #333;
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+        .gallery img:hover {
+            transform: scale(1.03);
+            border-color: #7c5cfc;
+        }
+        .gallery .placeholder {
+            background: #222;
+            border-radius: 12px;
+            aspect-ratio: 1/1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #555;
+            font-size: 0.8rem;
+            border: 2px dashed #444;
+        }
+
         .footer {
             margin-top: 20px;
             padding-top: 16px;
@@ -254,100 +240,39 @@
             justify-content: center;
             gap: 20px;
         }
-        /* ---- Edit button under image ---- */
-        .action-row {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            margin-top: 12px;
-            flex-wrap: wrap;
-        }
-        .action-row button {
-            width: auto;
-            padding: 8px 20px;
-            margin: 0;
-            font-size: 0.9rem;
-            box-shadow: 0 4px 0 #4f3a9e;
-            flex: 0 1 auto;
-        }
-        .action-row button:active {
-            transform: translateY(4px);
-            box-shadow: 0 1px 0 #4f3a9e;
-        }
-        .btn-edit {
-            background: #feca57;
-            color: #1a1a2e;
-        }
-        /* ---- Modal ---- */
-        .modal-overlay {
+
+        /* ---- Overlay for full-size preview ---- */
+        .lightbox {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(4px);
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(6px);
             display: none;
             justify-content: center;
             align-items: center;
-            z-index: 1000;
+            z-index: 2000;
             padding: 20px;
+            cursor: pointer;
         }
-        .modal-overlay.open {
+        .lightbox.open {
             display: flex;
         }
-        .modal-box {
-            background: #1a1a2e;
-            padding: 30px;
-            border-radius: 28px;
-            max-width: 500px;
-            width: 100%;
-            border: 1px solid #333;
-            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
-        }
-        .modal-box h2 {
-            margin-bottom: 12px;
-            font-size: 1.4rem;
-        }
-        .modal-box textarea {
-            width: 100%;
-            padding: 14px;
+        .lightbox img {
+            max-width: 90%;
+            max-height: 90%;
             border-radius: 16px;
-            border: 1px solid #444;
-            background: #0f0f1a;
-            color: #eee;
-            font-size: 1rem;
-            resize: vertical;
-            min-height: 100px;
-            font-family: system-ui, sans-serif;
-            outline: none;
-        }
-        .modal-box textarea:focus {
-            border-color: #7c5cfc;
-        }
-        .modal-actions {
-            display: flex;
-            gap: 12px;
-            margin-top: 16px;
-        }
-        .modal-actions button {
-            flex: 1;
-            margin: 0;
-        }
-        .btn-cancel {
-            background: #444;
-            box-shadow: 0 4px 0 #222;
-        }
-        .btn-cancel:active {
-            transform: translateY(4px);
-            box-shadow: 0 1px 0 #222;
+            border: 2px solid #7c5cfc;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎨 AI Image Gen</h1>
-        <p class="sub">Describe what you want to see</p>
+        <h1>🎨 AI Image Gen · 10x</h1>
+        <p class="sub">One prompt → 10 variations</p>
 
         <div id="modelStatus" class="model-status loading">⏳ Loading AI model...</div>
         <div class="progress-wrap" id="progressWrap">
@@ -355,7 +280,7 @@
         </div>
 
         <input type="text" id="prompt" placeholder="e.g., cat astronaut on Mars" disabled />
-        <button id="generateBtn" disabled>✨ Generate</button>
+        <button id="generateBtn" disabled>✨ Generate 10 Images</button>
 
         <div class="prep-wrapper" id="prepWrapper">
             <div class="prep-header" id="prepToggle">
@@ -367,18 +292,8 @@
 
         <div id="errorMsg" class="error-msg"></div>
 
-        <div class="image-wrapper">
-            <img id="result" src="" alt="Your generated image" />
-            <div id="imageOverlay" class="image-overlay">
-                <div class="spinner"></div>
-                <div class="label">Generating…</div>
-            </div>
-        </div>
-
-        <!-- Action row: Edit Prompt -->
-        <div class="action-row" id="actionRow" style="display:none;">
-            <button class="btn-edit" id="editPromptBtn">✏️ Edit Prompt</button>
-        </div>
+        <!-- Gallery -->
+        <div class="gallery" id="gallery"></div>
 
         <div class="footer">
             <span>⚡ Powered by Pollinations.ai</span>
@@ -386,17 +301,9 @@
         </div>
     </div>
 
-    <!-- Modal -->
-    <div class="modal-overlay" id="editModal">
-        <div class="modal-box">
-            <h2>✏️ Edit Prompt</h2>
-            <p style="color:#aaa;font-size:0.9rem;margin-bottom:12px;">Edit the enhanced prompt below to fix the image.</p>
-            <textarea id="editTextarea"></textarea>
-            <div class="modal-actions">
-                <button class="btn-cancel" id="cancelEditBtn">Cancel</button>
-                <button id="regenerateBtn">🔄 Regenerate</button>
-            </div>
-        </div>
+    <!-- Lightbox -->
+    <div class="lightbox" id="lightbox">
+        <img id="lightboxImg" src="" alt="Full size" />
     </div>
 
     <script type="importmap">
@@ -415,30 +322,21 @@
         // ---- DOM refs ----
         const promptInput = document.getElementById('prompt');
         const generateBtn = document.getElementById('generateBtn');
-        const resultImg = document.getElementById('result');
         const errorDiv = document.getElementById('errorMsg');
         const prepBody = document.getElementById('prepBody');
         const prepToggle = document.getElementById('prepToggle');
         const prepArrow = document.getElementById('prepArrow');
-        const imageOverlay = document.getElementById('imageOverlay');
         const modelStatus = document.getElementById('modelStatus');
         const progressWrap = document.getElementById('progressWrap');
         const progressBar = document.getElementById('progressBar');
-        const actionRow = document.getElementById('actionRow');
-        const editPromptBtn = document.getElementById('editPromptBtn');
-        const editModal = document.getElementById('editModal');
-        const editTextarea = document.getElementById('editTextarea');
-        const cancelEditBtn = document.getElementById('cancelEditBtn');
-        const regenerateBtn = document.getElementById('regenerateBtn');
+        const gallery = document.getElementById('gallery');
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImg = document.getElementById('lightboxImg');
 
         let prepExpanded = true;
         let model = null;
         let modelReady = false;
         let progressInterval = null;
-
-        // ---- Store current prompts ----
-        let currentOriginal = '';
-        let currentEnhanced = '';
 
         // ---- Toggle prep ----
         prepToggle.addEventListener('click', () => {
@@ -566,145 +464,115 @@
             }
         }
 
-        // ---- Generate image from a given prompt (used by both main and edit) ----
-        function generateImageFromPrompt(enhancedPrompt, originalPrompt, callback) {
-            const seed = Math.floor(Math.random() * 1000000);
-            const cacheBuster = Date.now();
-            const url =
-                `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=512&height=512&nologo=true&seed=${seed}&_=${cacheBuster}`;
-
-            resultImg.src = url;
-
-            const finish = () => {
-                imageOverlay.style.display = 'none';
-                prepBody.classList.add('collapsed');
-                prepExpanded = false;
-                prepArrow.classList.remove('open');
-                errorDiv.style.display = 'none';
-                actionRow.style.display = 'flex';
-                if (callback) callback();
-            };
-
-            resultImg.onload = finish;
-            resultImg.onerror = () => {
-                imageOverlay.style.display = 'none';
-                errorDiv.textContent = '❌ Generation failed. Try again or change your prompt.';
-                errorDiv.style.display = 'block';
-                prepBody.classList.add('collapsed');
-                prepExpanded = false;
-                prepArrow.classList.remove('open');
-                actionRow.style.display = 'none';
-                if (callback) callback();
-            };
-
-            // Fallback: hide overlay after 5s
-            setTimeout(() => {
-                if (imageOverlay.style.display !== 'none') {
-                    imageOverlay.style.display = 'none';
-                    prepBody.classList.add('collapsed');
-                    prepExpanded = false;
-                    prepArrow.classList.remove('open');
-                    actionRow.style.display = 'flex';
-                }
-            }, 5000);
-        }
-
-        // ---- Main Generate (clears history) ----
-        async function generateImage() {
+        // ---- Generate 10 images ----
+        async function generateImages() {
             const rawPrompt = promptInput.value.trim();
             if (!rawPrompt) {
                 alert('Please enter a description first.');
                 return;
             }
 
-            // CLEAR HISTORY (visual prep log)
+            // Clear gallery
+            gallery.innerHTML = '';
+
+            // Prep log: clear and expand
             prepBody.innerHTML = '';
             prepBody.classList.remove('collapsed');
             prepExpanded = true;
             prepArrow.classList.add('open');
-
-            imageOverlay.style.display = 'flex';
             errorDiv.style.display = 'none';
-            actionRow.style.display = 'none';
 
+            // Step 1: rewrite
             await appendStep(`<span class="spinner-inline" style="display:inline-block;width:14px;height:14px;border:2px solid #333;border-top:2px solid #7c5cfc;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:8px;"></span> <span class="highlight">Preparing...</span>`, 0);
 
             await appendStep(`🧠 <span class="highlight">AI rewriting prompt with realism focus...</span>`, 600);
 
             const enhanced = await rewriteWithAI(rawPrompt);
-            currentOriginal = rawPrompt;
-            currentEnhanced = enhanced;
 
             await appendStep(`📝 Original: "${rawPrompt}"`, 400);
             await appendStep(`✨ Enhanced: "${enhanced}"`, 600);
 
-            await appendStep(`⚙️ <span class="highlight">Building JSON structure...</span>`, 400);
+            await appendStep(`⚙️ <span class="highlight">Generating 10 images (different seeds)...</span>`, 400);
 
             const jsonObj = {
                 original: rawPrompt,
                 enhanced: enhanced,
                 style: "photorealistic, sharp, cinematic",
-                seed: Math.floor(Math.random() * 1000000),
-                width: 512,
-                height: 512,
+                count: 10,
                 timestamp: new Date().toISOString()
             };
             const jsonStr = JSON.stringify(jsonObj, null, 2);
             await appendStep(`📦 <div class="json-box">${jsonStr}</div>`, 400);
 
-            generateImageFromPrompt(enhanced, rawPrompt);
-        }
-
-        // ---- Regenerate from Edit (does NOT clear history) ----
-        function regenerateFromEdit() {
-            const newPrompt = editTextarea.value.trim();
-            if (!newPrompt) {
-                alert('Prompt cannot be empty.');
-                return;
+            // Prepare gallery placeholders
+            for (let i = 0; i < 10; i++) {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'placeholder';
+                placeholder.textContent = `⏳ ${i+1}`;
+                placeholder.id = `ph-${i}`;
+                gallery.appendChild(placeholder);
             }
 
-            editModal.classList.remove('open');
-            currentEnhanced = newPrompt;
+            // Generate images
+            const baseUrl =
+                `https://image.pollinations.ai/prompt/${encodeURIComponent(enhanced)}?width=512&height=512&nologo=true`;
 
-            // Append a step (do NOT clear prepBody)
-            appendStep(`✏️ <span class="highlight">User corrected prompt: "${newPrompt}"</span>`, 0);
+            // Use a small delay between loads to avoid rate limit
+            for (let i = 0; i < 10; i++) {
+                const seed = Math.floor(Math.random() * 1000000);
+                const url = `${baseUrl}&seed=${seed}&_=${Date.now() + i}`;
 
-            imageOverlay.style.display = 'flex';
-            errorDiv.style.display = 'none';
-            actionRow.style.display = 'none';
+                const img = document.createElement('img');
+                img.alt = `Image ${i+1}`;
+                img.loading = 'lazy';
+                img.dataset.index = i;
 
-            generateImageFromPrompt(newPrompt, currentOriginal, () => {
-                // Keep prep log open so user sees the correction
-                prepBody.classList.remove('collapsed');
-                prepExpanded = true;
-                prepArrow.classList.add('open');
-            });
+                // Replace placeholder with img
+                const placeholder = document.getElementById(`ph-${i}`);
+                if (placeholder) {
+                    placeholder.replaceWith(img);
+                } else {
+                    // fallback: append
+                    gallery.appendChild(img);
+                }
+
+                // Set src after a short delay to avoid hammering
+                await new Promise(resolve => {
+                    setTimeout(() => {
+                        img.src = url;
+                        resolve();
+                    }, i * 200); // 200ms between each
+                });
+
+                // Add lightbox click
+                img.addEventListener('click', () => {
+                    lightboxImg.src = img.src;
+                    lightbox.classList.add('open');
+                });
+            }
+
+            // Finally, collapse prep log
+            prepBody.classList.add('collapsed');
+            prepExpanded = false;
+            prepArrow.classList.remove('open');
+
+            // Add a note about 3%
+            const note = document.createElement('div');
+            note.style.cssText =
+                'margin-top:12px;font-size:0.8rem;color:#888;text-align:center;';
+            note.textContent = '💡 With 10 images, you have ~26% chance to get at least one good one (3% each).';
+            gallery.appendChild(note);
         }
 
         // ---- Event listeners ----
-        generateBtn.addEventListener('click', generateImage);
+        generateBtn.addEventListener('click', generateImages);
         promptInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') generateImage();
+            if (e.key === 'Enter') generateImages();
         });
 
-        // Edit button → open modal
-        editPromptBtn.addEventListener('click', () => {
-            editTextarea.value = currentEnhanced || '';
-            editModal.classList.add('open');
-            editTextarea.focus();
-        });
-
-        // Cancel edit
-        cancelEditBtn.addEventListener('click', () => {
-            editModal.classList.remove('open');
-        });
-
-        // Regenerate from modal
-        regenerateBtn.addEventListener('click', regenerateFromEdit);
-
-        // Close modal on overlay click
-        editModal.addEventListener('click', (e) => {
-            if (e.target === editModal) editModal.classList.remove('open');
+        // Lightbox close
+        lightbox.addEventListener('click', () => {
+            lightbox.classList.remove('open');
         });
 
         // ---- Init ----
