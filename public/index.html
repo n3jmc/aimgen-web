@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Image Generator</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, sans-serif;
+        }
+        body {
+            background: #0f0f1a;
+            color: #eee;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: #1a1a2e;
+            padding: 30px;
+            border-radius: 28px;
+            max-width: 680px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+        }
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 4px;
+        }
+        .sub {
+            color: #aaa;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 40px;
+            border: none;
+            background: #2a2a42;
+            color: #fff;
+            font-size: 1rem;
+            outline: 1px solid #444;
+            transition: 0.2s;
+        }
+        input:focus {
+            outline: 2px solid #7c5cfc;
+        }
+        button {
+            margin-top: 16px;
+            background: #7c5cfc;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 40px;
+            color: white;
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: 0.15s;
+            box-shadow: 0 6px 0 #4f3a9e;
+            width: 100%;
+        }
+        button:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #4f3a9e;
+        }
+
+        .image-wrapper {
+            position: relative;
+            margin-top: 20px;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #222;
+        }
+        #result {
+            display: block;
+            width: 100%;
+            height: auto;
+            min-height: 200px;
+            object-fit: cover;
+            transition: opacity 0.3s;
+            border: 2px solid #333;
+            border-radius: 16px;
+        }
+        .image-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 16px;
+            color: #fff;
+            gap: 12px;
+            backdrop-filter: blur(2px);
+        }
+        .image-overlay .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #333;
+            border-top: 4px solid #7c5cfc;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        .image-overlay .label {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: #ccc;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .prep-wrapper {
+            margin-top: 20px;
+            text-align: left;
+            background: #0a0a18;
+            border-radius: 16px;
+            border: 1px solid #2a2a42;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+        .prep-header {
+            padding: 10px 16px;
+            background: #14142a;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #888;
+            user-select: none;
+        }
+        .prep-header:hover {
+            background: #1a1a32;
+        }
+        .prep-header .arrow {
+            transition: transform 0.3s;
+            font-size: 0.8rem;
+        }
+        .prep-header .arrow.open {
+            transform: rotate(180deg);
+        }
+        .prep-body {
+            padding: 12px 16px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #b0b0d0;
+            background: #0a0a18;
+            transition: max-height 0.4s ease, padding 0.3s;
+        }
+        .prep-body.collapsed {
+            max-height: 0;
+            padding: 0 16px;
+            overflow: hidden;
+        }
+        .prep-body .step {
+            opacity: 0;
+            animation: fadeInStep 0.4s forwards;
+        }
+        @keyframes fadeInStep {
+            to { opacity: 1; }
+        }
+        .prep-body .step+.step {
+            margin-top: 8px;
+        }
+        .prep-body .highlight {
+            color: #7c5cfc;
+        }
+        .prep-body .json-box {
+            background: #0d0d20;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border-left: 3px solid #7c5cfc;
+            margin-top: 4px;
+            white-space: pre-wrap;
+            font-size: 0.8rem;
+            color: #c0c0e0;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        .prep-body .json-box::-webkit-scrollbar {
+            width: 4px;
+        }
+        .prep-body .json-box::-webkit-scrollbar-track {
+            background: #14142a;
+        }
+        .prep-body .json-box::-webkit-scrollbar-thumb {
+            background: #7c5cfc;
+            border-radius: 10px;
+        }
+
+        .error-msg {
+            color: #ff4757;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            display: none;
+        }
+        .footer {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid #2a2a42;
+            font-size: 0.8rem;
+            color: #666;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 AI Image Gen</h1>
+        <p class="sub">Describe what you want to see</p>
+
+        <input type="text" id="prompt" placeholder="e.g., cat astronaut on Mars" />
+        <button id="generateBtn">✨ Generate</button>
+
+        <div class="prep-wrapper" id="prepWrapper">
+            <div class="prep-header" id="prepToggle">
+                <span>📋 Preparation details</span>
+                <span class="arrow" id="prepArrow">▼</span>
+            </div>
+            <div class="prep-body" id="prepBody"></div>
+        </div>
+
+        <div id="errorMsg" class="error-msg"></div>
+
+        <div class="image-wrapper">
+            <img id="result" src="" alt="Your generated image" />
+            <div id="imageOverlay" class="image-overlay">
+                <div class="spinner"></div>
+                <div class="label">Generating…</div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <span>⚡ Powered by Pollinations.ai</span>
+            <span>🚀 Hosted on Render</span>
+        </div>
+    </div>
+
+    <script>
+        const promptInput = document.getElementById('prompt');
+        const generateBtn = document.getElementById('generateBtn');
+        const resultImg = document.getElementById('result');
+        const errorDiv = document.getElementById('errorMsg');
+        const prepBody = document.getElementById('prepBody');
+        const prepToggle = document.getElementById('prepToggle');
+        const prepArrow = document.getElementById('prepArrow');
+        const imageOverlay = document.getElementById('imageOverlay');
+
+        let prepExpanded = true;
+
+        prepToggle.addEventListener('click', () => {
+            prepExpanded = !prepExpanded;
+            prepBody.classList.toggle('collapsed', !prepExpanded);
+            prepArrow.classList.toggle('open', prepExpanded);
+        });
+
+        function appendStep(html, delay = 0) {
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    const div = document.createElement('div');
+                    div.className = 'step';
+                    div.innerHTML = html;
+                    prepBody.appendChild(div);
+                    prepBody.scrollTop = prepBody.scrollHeight;
+                    resolve();
+                }, delay);
+            });
+        }
+
+        // ---- LOCAL prompt enhancer (no internet) ----
+        function enhancePromptLocally(raw) {
+            const styleMap = {
+                'cat': 'furry, detailed fur, expressive eyes',
+                'dog': 'fluffy, playful, detailed coat',
+                'city': 'urban, neon lights, skyscrapers, busy streets',
+                'sunset': 'golden hour, warm colors, dramatic sky',
+                'forest': 'dense trees, mystical, sun rays through leaves',
+                'space': 'stars, nebula, cosmic, otherworldly',
+                'cyberpunk': 'neon, rain, futuristic, high-tech',
+                'fantasy': 'magical, epic, mythical creatures, glowing',
+                'portrait': 'detailed face, expressive, realistic skin texture',
+                'animal': 'wildlife, detailed fur/feathers, natural lighting',
+            };
+
+            let enhanced = raw;
+            for (const [key, value] of Object.entries(styleMap)) {
+                if (raw.toLowerCase().includes(key)) {
+                    enhanced += `, ${value}`;
+                    break;
+                }
+            }
+
+            // Always add quality boosters
+            enhanced += `, highly detailed, cinematic lighting, 8k, photorealistic, masterpiece`;
+
+            return enhanced;
+        }
+
+        // ---- Generate ----
+        async function generateImage() {
+            const rawPrompt = promptInput.value.trim();
+            if (!rawPrompt) {
+                alert('Please enter a description first.');
+                return;
+            }
+
+            prepBody.innerHTML = '';
+            prepBody.classList.remove('collapsed');
+            prepExpanded = true;
+            prepArrow.classList.add('open');
+
+            imageOverlay.style.display = 'flex';
+            errorDiv.style.display = 'none';
+
+            await appendStep(`<span class="spinner-inline" style="display:inline-block;width:14px;height:14px;border:2px solid #333;border-top:2px solid #7c5cfc;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:8px;"></span> <span class="highlight">Preparing...</span>`, 0);
+
+            await appendStep(`🧠 <span class="highlight">Analyzing prompt locally...</span>`, 600);
+
+            // ---- Local enhancement ----
+            const enhanced = enhancePromptLocally(rawPrompt);
+
+            await appendStep(`📝 Original: "${rawPrompt}"`, 400);
+            await appendStep(`✨ Enhanced: "${enhanced}"`, 600);
+
+            await appendStep(`⚙️ <span class="highlight">Building JSON structure...</span>`, 400);
+
+            const jsonObj = {
+                original: rawPrompt,
+                enhanced: enhanced,
+                style: "photorealistic, cinematic",
+                seed: Math.floor(Math.random() * 1000000),
+                width: 512,
+                height: 512,
+                timestamp: new Date().toISOString()
+            };
+            const jsonStr = JSON.stringify(jsonObj, null, 2);
+            await appendStep(`📦 <div class="json-box">${jsonStr}</div>`, 400);
+
+            // ---- Generate image ----
+            const seed = jsonObj.seed;
+            const cacheBuster = Date.now();
+
+            const url =
+                `https://image.pollinations.ai/prompt/${encodeURIComponent(enhanced)}?width=512&height=512&nologo=true&seed=${seed}&_=${cacheBuster}`;
+
+            resultImg.src = url;
+
+            resultImg.onload = () => {
+                imageOverlay.style.display = 'none';
+                prepBody.classList.add('collapsed');
+                prepExpanded = false;
+                prepArrow.classList.remove('open');
+                errorDiv.style.display = 'none';
+            };
+
+            resultImg.onerror = () => {
+                imageOverlay.style.display = 'none';
+                errorDiv.textContent = '❌ Generation failed. Try again or change your prompt.';
+                errorDiv.style.display = 'block';
+            };
+        }
+
+        generateBtn.addEventListener('click', generateImage);
+        promptInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') generateImage();
+        });
+
+        // ---- No default prompt ----
+        // (input starts empty)
+    </script>
+</body>
+</html>
