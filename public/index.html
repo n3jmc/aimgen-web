@@ -279,8 +279,13 @@
     </script>
 
     <script type="module">
-        // ---- Import pipeline from Transformers.js ----
-        import { pipeline } from '@xenova/transformers';
+        // ---- Import pipeline AND env ----
+        import { pipeline, env } from '@xenova/transformers';
+
+        // ---- FIX: set remote host to Hugging Face ----
+        env.remoteHost = 'https://huggingface.co';
+        // Optional: also set cache directory (browser default is fine)
+        // env.localModelPath = '/models/'; // not needed
 
         // ---- DOM refs ----
         const promptInput = document.getElementById('prompt');
@@ -349,7 +354,7 @@
                 modelStatus.textContent = '⏳ Loading AI model (FLAN-T5-small)...';
                 modelStatus.className = 'model-status loading';
 
-                // Try with flan-t5-small, if fails fallback to tiny-random-t5
+                // Try with flan-t5-small, fallback to tiny
                 try {
                     model = await pipeline('text2text-generation', 'Xenova/flan-t5-small');
                 } catch (e) {
@@ -365,7 +370,7 @@
                 modelStatus.textContent = '⚠️ AI model failed. Using local enhancer.';
                 modelStatus.className = 'model-status failed';
                 modelReady = false;
-                generateBtn.disabled = false; // still allow generation
+                generateBtn.disabled = false;
             }
         }
 
