@@ -210,7 +210,7 @@
         @keyframes fadeInStep {
             to { opacity: 1; }
         }
-        .prep-body .step + .step {
+        .prep-body .step+.step {
             margin-top: 8px;
         }
         .prep-body .highlight {
@@ -254,6 +254,94 @@
             justify-content: center;
             gap: 20px;
         }
+        /* ---- Edit button under image ---- */
+        .action-row {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        .action-row button {
+            width: auto;
+            padding: 8px 20px;
+            margin: 0;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 0 #4f3a9e;
+            flex: 0 1 auto;
+        }
+        .action-row button:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 #4f3a9e;
+        }
+        .btn-edit {
+            background: #feca57;
+            color: #1a1a2e;
+        }
+        /* ---- Modal ---- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        .modal-overlay.open {
+            display: flex;
+        }
+        .modal-box {
+            background: #1a1a2e;
+            padding: 30px;
+            border-radius: 28px;
+            max-width: 500px;
+            width: 100%;
+            border: 1px solid #333;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
+        }
+        .modal-box h2 {
+            margin-bottom: 12px;
+            font-size: 1.4rem;
+        }
+        .modal-box textarea {
+            width: 100%;
+            padding: 14px;
+            border-radius: 16px;
+            border: 1px solid #444;
+            background: #0f0f1a;
+            color: #eee;
+            font-size: 1rem;
+            resize: vertical;
+            min-height: 100px;
+            font-family: system-ui, sans-serif;
+            outline: none;
+        }
+        .modal-box textarea:focus {
+            border-color: #7c5cfc;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+        .modal-actions button {
+            flex: 1;
+            margin: 0;
+        }
+        .btn-cancel {
+            background: #444;
+            box-shadow: 0 4px 0 #222;
+        }
+        .btn-cancel:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 #222;
+        }
     </style>
 </head>
 <body>
@@ -287,9 +375,27 @@
             </div>
         </div>
 
+        <!-- Action row: Edit Prompt -->
+        <div class="action-row" id="actionRow" style="display:none;">
+            <button class="btn-edit" id="editPromptBtn">✏️ Edit Prompt</button>
+        </div>
+
         <div class="footer">
             <span>⚡ Powered by Pollinations.ai</span>
             <span>🧠 AI Enhancer: FLAN-T5 (browser)</span>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal-box">
+            <h2>✏️ Edit Prompt</h2>
+            <p style="color:#aaa;font-size:0.9rem;margin-bottom:12px;">Edit the enhanced prompt below to fix the image.</p>
+            <textarea id="editTextarea"></textarea>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="cancelEditBtn">Cancel</button>
+                <button id="regenerateBtn">🔄 Regenerate</button>
+            </div>
         </div>
     </div>
 
@@ -318,11 +424,21 @@
         const modelStatus = document.getElementById('modelStatus');
         const progressWrap = document.getElementById('progressWrap');
         const progressBar = document.getElementById('progressBar');
+        const actionRow = document.getElementById('actionRow');
+        const editPromptBtn = document.getElementById('editPromptBtn');
+        const editModal = document.getElementById('editModal');
+        const editTextarea = document.getElementById('editTextarea');
+        const cancelEditBtn = document.getElementById('cancelEditBtn');
+        const regenerateBtn = document.getElementById('regenerateBtn');
 
         let prepExpanded = true;
         let model = null;
         let modelReady = false;
         let progressInterval = null;
+
+        // ---- Store current prompts ----
+        let currentOriginal = '';
+        let currentEnhanced = '';
 
         // ---- Toggle prep ----
         prepToggle.addEventListener('click', () => {
@@ -366,7 +482,6 @@
                     break;
                 }
             }
-            // Stronger quality boosters
             enhanced += `, highly detailed, sharp focus, photorealistic, 8k, cinematic lighting, masterpiece`;
             return enhanced;
         }
@@ -426,12 +541,11 @@
             }
         }
 
-        // ---- AI rewrite (improved for realism) ----
+        // ---- AI rewrite ----
         async function rewriteWithAI(raw) {
             if (!modelReady || !model) {
                 return enhanceLocally(raw);
             }
-
             const instruction =
                 `Rewrite this prompt for an AI image generator to produce a highly realistic photograph. Add details about lighting, composition, texture, and color. Avoid surreal, abstract, or distorted elements. Output only the rewritten prompt: "${raw}"`;
             try {
@@ -452,7 +566,50 @@
             }
         }
 
-        // ---- Generate image ----
+        // ---- Generate image from a given prompt (used by both main and edit) ----
+        function generateImageFromPrompt(enhancedPrompt, originalPrompt, callback) {
+            const seed = Math.floor(Math.random() * 1000000);
+            const cacheBuster = Date.now();
+            const url =
+                `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=512&height=512&nologo=true&seed=${seed}&_=${cacheBuster}`;
+
+            resultImg.src = url;
+
+            const finish = () => {
+                imageOverlay.style.display = 'none';
+                prepBody.classList.add('collapsed');
+                prepExpanded = false;
+                prepArrow.classList.remove('open');
+                errorDiv.style.display = 'none';
+                actionRow.style.display = 'flex';
+                if (callback) callback();
+            };
+
+            resultImg.onload = finish;
+            resultImg.onerror = () => {
+                imageOverlay.style.display = 'none';
+                errorDiv.textContent = '❌ Generation failed. Try again or change your prompt.';
+                errorDiv.style.display = 'block';
+                prepBody.classList.add('collapsed');
+                prepExpanded = false;
+                prepArrow.classList.remove('open');
+                actionRow.style.display = 'none';
+                if (callback) callback();
+            };
+
+            // Fallback: hide overlay after 5s
+            setTimeout(() => {
+                if (imageOverlay.style.display !== 'none') {
+                    imageOverlay.style.display = 'none';
+                    prepBody.classList.add('collapsed');
+                    prepExpanded = false;
+                    prepArrow.classList.remove('open');
+                    actionRow.style.display = 'flex';
+                }
+            }, 5000);
+        }
+
+        // ---- Main Generate (clears history) ----
         async function generateImage() {
             const rawPrompt = promptInput.value.trim();
             if (!rawPrompt) {
@@ -460,6 +617,7 @@
                 return;
             }
 
+            // CLEAR HISTORY (visual prep log)
             prepBody.innerHTML = '';
             prepBody.classList.remove('collapsed');
             prepExpanded = true;
@@ -467,12 +625,15 @@
 
             imageOverlay.style.display = 'flex';
             errorDiv.style.display = 'none';
+            actionRow.style.display = 'none';
 
             await appendStep(`<span class="spinner-inline" style="display:inline-block;width:14px;height:14px;border:2px solid #333;border-top:2px solid #7c5cfc;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:8px;"></span> <span class="highlight">Preparing...</span>`, 0);
 
             await appendStep(`🧠 <span class="highlight">AI rewriting prompt with realism focus...</span>`, 600);
 
             const enhanced = await rewriteWithAI(rawPrompt);
+            currentOriginal = rawPrompt;
+            currentEnhanced = enhanced;
 
             await appendStep(`📝 Original: "${rawPrompt}"`, 400);
             await appendStep(`✨ Enhanced: "${enhanced}"`, 600);
@@ -491,50 +652,59 @@
             const jsonStr = JSON.stringify(jsonObj, null, 2);
             await appendStep(`📦 <div class="json-box">${jsonStr}</div>`, 400);
 
-            const seed = jsonObj.seed;
-            const cacheBuster = Date.now();
-            // Add more quality parameters to the URL
-            const url =
-                `https://image.pollinations.ai/prompt/${encodeURIComponent(enhanced)}?width=512&height=512&nologo=true&seed=${seed}&model=flux&_=${cacheBuster}`;
+            generateImageFromPrompt(enhanced, rawPrompt);
+        }
 
-            resultImg.src = url;
+        // ---- Regenerate from Edit (does NOT clear history) ----
+        function regenerateFromEdit() {
+            const newPrompt = editTextarea.value.trim();
+            if (!newPrompt) {
+                alert('Prompt cannot be empty.');
+                return;
+            }
 
-            // ---- Hide overlay and collapse on load or error ----
-            const finish = () => {
-                imageOverlay.style.display = 'none';
-                prepBody.classList.add('collapsed');
-                prepExpanded = false;
-                prepArrow.classList.remove('open');
-                errorDiv.style.display = 'none';
-            };
+            editModal.classList.remove('open');
+            currentEnhanced = newPrompt;
 
-            resultImg.onload = finish;
+            // Append a step (do NOT clear prepBody)
+            appendStep(`✏️ <span class="highlight">User corrected prompt: "${newPrompt}"</span>`, 0);
 
-            resultImg.onerror = () => {
-                imageOverlay.style.display = 'none';
-                errorDiv.textContent = '❌ Generation failed. Try again or change your prompt.';
-                errorDiv.style.display = 'block';
-                // Still collapse prep log?
-                prepBody.classList.add('collapsed');
-                prepExpanded = false;
-                prepArrow.classList.remove('open');
-            };
+            imageOverlay.style.display = 'flex';
+            errorDiv.style.display = 'none';
+            actionRow.style.display = 'none';
 
-            // Fallback: if onload never fires (cached?), force hide after 5s
-            setTimeout(() => {
-                if (imageOverlay.style.display !== 'none') {
-                    imageOverlay.style.display = 'none';
-                    prepBody.classList.add('collapsed');
-                    prepExpanded = false;
-                    prepArrow.classList.remove('open');
-                }
-            }, 5000);
+            generateImageFromPrompt(newPrompt, currentOriginal, () => {
+                // Keep prep log open so user sees the correction
+                prepBody.classList.remove('collapsed');
+                prepExpanded = true;
+                prepArrow.classList.add('open');
+            });
         }
 
         // ---- Event listeners ----
         generateBtn.addEventListener('click', generateImage);
         promptInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') generateImage();
+        });
+
+        // Edit button → open modal
+        editPromptBtn.addEventListener('click', () => {
+            editTextarea.value = currentEnhanced || '';
+            editModal.classList.add('open');
+            editTextarea.focus();
+        });
+
+        // Cancel edit
+        cancelEditBtn.addEventListener('click', () => {
+            editModal.classList.remove('open');
+        });
+
+        // Regenerate from modal
+        regenerateBtn.addEventListener('click', regenerateFromEdit);
+
+        // Close modal on overlay click
+        editModal.addEventListener('click', (e) => {
+            if (e.target === editModal) editModal.classList.remove('open');
         });
 
         // ---- Init ----
