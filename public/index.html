@@ -42,12 +42,34 @@
             border-radius: 40px;
             background: #14142a;
             display: inline-block;
-            margin-bottom: 16px;
+            margin-bottom: 8px;
             min-width: 200px;
         }
         .model-status.loading { color: #feca57; }
         .model-status.ready { color: #2ed573; }
         .model-status.failed { color: #ff4757; }
+
+        /* Progress bar */
+        .progress-wrap {
+            width: 100%;
+            height: 6px;
+            background: #2a2a42;
+            border-radius: 10px;
+            margin: 8px 0 16px;
+            overflow: hidden;
+            display: none;
+        }
+        .progress-wrap.visible {
+            display: block;
+        }
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #7c5cfc, #a78bfa);
+            border-radius: 10px;
+            transition: width 0.2s ease;
+        }
+
         input[type="text"] {
             width: 100%;
             padding: 14px 18px;
@@ -61,6 +83,10 @@
         }
         input:focus {
             outline: 2px solid #7c5cfc;
+        }
+        input:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
         }
         button {
             margin-top: 16px;
@@ -242,7 +268,12 @@
 
         <div id="modelStatus" class="model-status loading">⏳ Loading AI model...</div>
 
-        <input type="text" id="prompt" placeholder="e.g., cat astronaut on Mars" />
+        <!-- Progress bar -->
+        <div class="progress-wrap" id="progressWrap">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+
+        <input type="text" id="prompt" placeholder="e.g., cat astronaut on Mars" disabled />
         <button id="generateBtn" disabled>✨ Generate</button>
 
         <div class="prep-wrapper" id="prepWrapper">
@@ -279,13 +310,10 @@
     </script>
 
     <script type="module">
-        // ---- Import pipeline AND env ----
         import { pipeline, env } from '@xenova/transformers';
 
-        // ---- FIX: set remote host to Hugging Face ----
+        // ---- Set remote host ----
         env.remoteHost = 'https://huggingface.co';
-        // Optional: also set cache directory (browser default is fine)
-        // env.localModelPath = '/models/'; // not needed
 
         // ---- DOM refs ----
         const promptInput = document.getElementById('prompt');
@@ -297,10 +325,13 @@
         const prepArrow = document.getElementById('prepArrow');
         const imageOverlay = document.getElementById('imageOverlay');
         const modelStatus = document.getElementById('modelStatus');
+        const progressWrap = document.getElementById('progressWrap');
+        const progressBar = document.getElementById('progressBar');
 
         let prepExpanded = true;
         let model = null;
         let modelReady = false;
+        let progressInterval = null;
 
         // ---- Toggle prep ----
         prepToggle.addEventListener('click', () => {
@@ -348,29 +379,71 @@
             return enhanced;
         }
 
-        // ---- Load AI model ----
-        async function loadModel() {
-            try {
-                modelStatus.textContent = '⏳ Loading AI model (FLAN-T5-small)...';
-                modelStatus.className = 'model-status loading';
+        // ---- Set progress ----
+        function setProgress(value) {
+            const clamped = Math.min(100, Math.max(0, value));
+            progressBar.style.width = clamped + '%';
+        }
 
-                // Try with flan-t5-small, fallback to tiny
+        // ---- Load AI model with progress ----
+        async function loadModel() {
+            // Show progress bar
+            progressWrap.classList.add('visible');
+            setProgress(0);
+
+            // Disable UI
+            promptInput.disabled = true;
+            generateBtn.disabled = true;
+            modelStatus.textContent = '⏳ Loading AI model...';
+            modelStatus.className = 'model-status loading';
+
+            try {
+                // Simulate progress while loading (since onProgress may not fire for all steps)
+                let simulatedProgress = 0;
+                progressInterval = setInterval(() => {
+                    simulatedProgress += Math.random() * 5 + 2;
+                    if (simulatedProgress > 90) simulatedProgress = 90;
+                    setProgress(simulatedProgress);
+                }, 300);
+
+                // Set up onProgress for real download progress
+                env.onProgress = (progress) => {
+                    if (progress.progress !== undefined) {
+                        const pct = progress.progress * 100;
+                        setProgress(Math.min(90, pct)); // cap at 90 until fully loaded
+                    }
+                };
+
+                // Try to load model
                 try {
                     model = await pipeline('text2text-generation', 'Xenova/flan-t5-small');
                 } catch (e) {
                     console.warn('FLAN-T5-small failed, trying tiny-random-t5...', e);
                     model = await pipeline('text2text-generation', 'Xenova/tiny-random-t5');
                 }
+
+                clearInterval(progressInterval);
+                setProgress(100);
                 modelReady = true;
                 modelStatus.textContent = '✅ AI model ready! (FLAN-T5)';
                 modelStatus.className = 'model-status ready';
+                promptInput.disabled = false;
                 generateBtn.disabled = false;
+
+                // Hide progress bar after short delay
+                setTimeout(() => {
+                    progressWrap.classList.remove('visible');
+                }, 600);
+
             } catch (err) {
+                clearInterval(progressInterval);
                 console.error('Model load error:', err);
                 modelStatus.textContent = '⚠️ AI model failed. Using local enhancer.';
                 modelStatus.className = 'model-status failed';
                 modelReady = false;
+                promptInput.disabled = false;
                 generateBtn.disabled = false;
+                progressWrap.classList.remove('visible');
             }
         }
 
@@ -387,7 +460,6 @@
                     temperature: 0.7,
                 });
                 let rewritten = result[0]?.generated_text || raw;
-                // Clean up
                 if (rewritten.includes(raw) && rewritten.length > raw.length + 20) {
                     const parts = rewritten.split(raw);
                     if (parts.length > 1) {
@@ -450,6 +522,7 @@
 
             resultImg.onload = () => {
                 imageOverlay.style.display = 'none';
+                // Collapse prep log after image loads
                 prepBody.classList.add('collapsed');
                 prepExpanded = false;
                 prepArrow.classList.remove('open');
