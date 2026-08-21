@@ -48,8 +48,6 @@
         .model-status.loading { color: #feca57; }
         .model-status.ready { color: #2ed573; }
         .model-status.failed { color: #ff4757; }
-
-        /* Progress bar */
         .progress-wrap {
             width: 100%;
             height: 6px;
@@ -59,9 +57,7 @@
             overflow: hidden;
             display: none;
         }
-        .progress-wrap.visible {
-            display: block;
-        }
+        .progress-wrap.visible { display: block; }
         .progress-bar {
             width: 0%;
             height: 100%;
@@ -69,7 +65,6 @@
             border-radius: 10px;
             transition: width 0.2s ease;
         }
-
         input[type="text"] {
             width: 100%;
             padding: 14px 18px;
@@ -267,8 +262,6 @@
         <p class="sub">Describe what you want to see</p>
 
         <div id="modelStatus" class="model-status loading">⏳ Loading AI model...</div>
-
-        <!-- Progress bar -->
         <div class="progress-wrap" id="progressWrap">
             <div class="progress-bar" id="progressBar"></div>
         </div>
@@ -300,7 +293,6 @@
         </div>
     </div>
 
-    <!-- Use importmap for Transformers.js (ES modules) -->
     <script type="importmap">
     {
         "imports": {
@@ -312,7 +304,6 @@
     <script type="module">
         import { pipeline, env } from '@xenova/transformers';
 
-        // ---- Set remote host ----
         env.remoteHost = 'https://huggingface.co';
 
         // ---- DOM refs ----
@@ -375,30 +366,26 @@
                     break;
                 }
             }
-            enhanced += `, highly detailed, cinematic lighting, 8k, photorealistic, masterpiece`;
+            // Stronger quality boosters
+            enhanced += `, highly detailed, sharp focus, photorealistic, 8k, cinematic lighting, masterpiece`;
             return enhanced;
         }
 
         // ---- Set progress ----
         function setProgress(value) {
-            const clamped = Math.min(100, Math.max(0, value));
-            progressBar.style.width = clamped + '%';
+            progressBar.style.width = Math.min(100, Math.max(0, value)) + '%';
         }
 
-        // ---- Load AI model with progress ----
+        // ---- Load AI model ----
         async function loadModel() {
-            // Show progress bar
             progressWrap.classList.add('visible');
             setProgress(0);
-
-            // Disable UI
             promptInput.disabled = true;
             generateBtn.disabled = true;
             modelStatus.textContent = '⏳ Loading AI model...';
             modelStatus.className = 'model-status loading';
 
             try {
-                // Simulate progress while loading (since onProgress may not fire for all steps)
                 let simulatedProgress = 0;
                 progressInterval = setInterval(() => {
                     simulatedProgress += Math.random() * 5 + 2;
@@ -406,15 +393,12 @@
                     setProgress(simulatedProgress);
                 }, 300);
 
-                // Set up onProgress for real download progress
                 env.onProgress = (progress) => {
                     if (progress.progress !== undefined) {
-                        const pct = progress.progress * 100;
-                        setProgress(Math.min(90, pct)); // cap at 90 until fully loaded
+                        setProgress(Math.min(90, progress.progress * 100));
                     }
                 };
 
-                // Try to load model
                 try {
                     model = await pipeline('text2text-generation', 'Xenova/flan-t5-small');
                 } catch (e) {
@@ -429,12 +413,7 @@
                 modelStatus.className = 'model-status ready';
                 promptInput.disabled = false;
                 generateBtn.disabled = false;
-
-                // Hide progress bar after short delay
-                setTimeout(() => {
-                    progressWrap.classList.remove('visible');
-                }, 600);
-
+                setTimeout(() => progressWrap.classList.remove('visible'), 600);
             } catch (err) {
                 clearInterval(progressInterval);
                 console.error('Model load error:', err);
@@ -447,24 +426,23 @@
             }
         }
 
-        // ---- AI rewrite ----
+        // ---- AI rewrite (improved for realism) ----
         async function rewriteWithAI(raw) {
             if (!modelReady || !model) {
                 return enhanceLocally(raw);
             }
 
-            const prompt = `Rewrite this prompt for an AI image generator. Add realistic physics, logical scene composition, and avoid unnatural elements. Output only the rewritten prompt: "${raw}"`;
+            const instruction =
+                `Rewrite this prompt for an AI image generator to produce a highly realistic photograph. Add details about lighting, composition, texture, and color. Avoid surreal, abstract, or distorted elements. Output only the rewritten prompt: "${raw}"`;
             try {
-                const result = await model(prompt, {
-                    max_new_tokens: 80,
-                    temperature: 0.7,
+                const result = await model(instruction, {
+                    max_new_tokens: 100,
+                    temperature: 0.6,
                 });
                 let rewritten = result[0]?.generated_text || raw;
                 if (rewritten.includes(raw) && rewritten.length > raw.length + 20) {
                     const parts = rewritten.split(raw);
-                    if (parts.length > 1) {
-                        rewritten = parts[1].trim();
-                    }
+                    if (parts.length > 1) rewritten = parts[1].trim();
                 }
                 if (!rewritten || rewritten.length < 3) rewritten = enhanceLocally(raw);
                 return rewritten;
@@ -492,7 +470,7 @@
 
             await appendStep(`<span class="spinner-inline" style="display:inline-block;width:14px;height:14px;border:2px solid #333;border-top:2px solid #7c5cfc;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:8px;"></span> <span class="highlight">Preparing...</span>`, 0);
 
-            await appendStep(`🧠 <span class="highlight">AI rewriting prompt with physics + logic...</span>`, 600);
+            await appendStep(`🧠 <span class="highlight">AI rewriting prompt with realism focus...</span>`, 600);
 
             const enhanced = await rewriteWithAI(rawPrompt);
 
@@ -504,7 +482,7 @@
             const jsonObj = {
                 original: rawPrompt,
                 enhanced: enhanced,
-                style: "photorealistic, cinematic",
+                style: "photorealistic, sharp, cinematic",
                 seed: Math.floor(Math.random() * 1000000),
                 width: 512,
                 height: 512,
@@ -515,25 +493,42 @@
 
             const seed = jsonObj.seed;
             const cacheBuster = Date.now();
+            // Add more quality parameters to the URL
             const url =
-                `https://image.pollinations.ai/prompt/${encodeURIComponent(enhanced)}?width=512&height=512&nologo=true&seed=${seed}&_=${cacheBuster}`;
+                `https://image.pollinations.ai/prompt/${encodeURIComponent(enhanced)}?width=512&height=512&nologo=true&seed=${seed}&model=flux&_=${cacheBuster}`;
 
             resultImg.src = url;
 
-            resultImg.onload = () => {
+            // ---- Hide overlay and collapse on load or error ----
+            const finish = () => {
                 imageOverlay.style.display = 'none';
-                // Collapse prep log after image loads
                 prepBody.classList.add('collapsed');
                 prepExpanded = false;
                 prepArrow.classList.remove('open');
                 errorDiv.style.display = 'none';
             };
 
+            resultImg.onload = finish;
+
             resultImg.onerror = () => {
                 imageOverlay.style.display = 'none';
                 errorDiv.textContent = '❌ Generation failed. Try again or change your prompt.';
                 errorDiv.style.display = 'block';
+                // Still collapse prep log?
+                prepBody.classList.add('collapsed');
+                prepExpanded = false;
+                prepArrow.classList.remove('open');
             };
+
+            // Fallback: if onload never fires (cached?), force hide after 5s
+            setTimeout(() => {
+                if (imageOverlay.style.display !== 'none') {
+                    imageOverlay.style.display = 'none';
+                    prepBody.classList.add('collapsed');
+                    prepExpanded = false;
+                    prepArrow.classList.remove('open');
+                }
+            }, 5000);
         }
 
         // ---- Event listeners ----
