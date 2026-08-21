@@ -38,13 +38,16 @@
         }
         .model-status {
             font-size: 0.8rem;
-            color: #7c5cfc;
-            margin-bottom: 16px;
             padding: 6px 16px;
             border-radius: 40px;
             background: #14142a;
             display: inline-block;
+            margin-bottom: 16px;
+            min-width: 200px;
         }
+        .model-status.loading { color: #feca57; }
+        .model-status.ready { color: #2ed573; }
+        .model-status.failed { color: #ff4757; }
         input[type="text"] {
             width: 100%;
             padding: 14px 18px;
@@ -83,7 +86,6 @@
             transform: none;
             box-shadow: 0 6px 0 #4f3a9e;
         }
-
         .image-wrapper {
             position: relative;
             margin-top: 20px;
@@ -133,7 +135,6 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-
         .prep-wrapper {
             margin-top: 20px;
             text-align: left;
@@ -216,7 +217,6 @@
             background: #7c5cfc;
             border-radius: 10px;
         }
-
         .error-msg {
             color: #ff4757;
             margin-top: 10px;
@@ -233,10 +233,6 @@
             justify-content: center;
             gap: 20px;
         }
-        .footer a {
-            color: #7c5cfc;
-            text-decoration: none;
-        }
     </style>
 </head>
 <body>
@@ -244,7 +240,7 @@
         <h1>🎨 AI Image Gen</h1>
         <p class="sub">Describe what you want to see</p>
 
-        <div id="modelStatus" class="model-status">⏳ Loading AI model...</div>
+        <div id="modelStatus" class="model-status loading">⏳ Loading AI model...</div>
 
         <input type="text" id="prompt" placeholder="e.g., cat astronaut on Mars" />
         <button id="generateBtn" disabled>✨ Generate</button>
@@ -314,24 +310,6 @@
             });
         }
 
-        // ---- Load AI model ----
-        async function loadModel() {
-            try {
-                modelStatus.textContent = '⏳ Loading AI model (FLAN-T5)... this may take a minute.';
-                const pipeline = transformers.pipeline;
-                // Use text2text-generation for rewriting
-                model = await pipeline('text2text-generation', 'Xenova/flan-t5-small');
-                modelReady = true;
-                modelStatus.textContent = '✅ AI model ready!';
-                generateBtn.disabled = false;
-            } catch (err) {
-                console.error('Model load error:', err);
-                modelStatus.textContent = '⚠️ AI model failed. Using local enhancer.';
-                modelReady = false;
-                generateBtn.disabled = false; // still allow generation with fallback
-            }
-        }
-
         // ---- Local fallback enhancer ----
         function enhanceLocally(raw) {
             const styleMap = {
@@ -357,6 +335,37 @@
             return enhanced;
         }
 
+        // ---- Load AI model with fallback ----
+        async function loadModel() {
+            try {
+                modelStatus.textContent = '⏳ Loading AI model (FLAN-T5-small)...';
+                modelStatus.className = 'model-status loading';
+                // Check if transformers is available
+                if (typeof transformers === 'undefined') {
+                    throw new Error('Transformers library not loaded.');
+                }
+                const pipeline = transformers.pipeline;
+                // Use a smaller model for faster loading (optional)
+                // Try with flan-t5-small, if fails fallback to tiny-random-t5
+                try {
+                    model = await pipeline('text2text-generation', 'Xenova/flan-t5-small');
+                } catch (e) {
+                    console.warn('FLAN-T5-small failed, trying tiny-random-t5...', e);
+                    model = await pipeline('text2text-generation', 'Xenova/tiny-random-t5');
+                }
+                modelReady = true;
+                modelStatus.textContent = '✅ AI model ready! (FLAN-T5)';
+                modelStatus.className = 'model-status ready';
+                generateBtn.disabled = false;
+            } catch (err) {
+                console.error('Model load error:', err);
+                modelStatus.textContent = '⚠️ AI model failed. Using local enhancer.';
+                modelStatus.className = 'model-status failed';
+                modelReady = false;
+                generateBtn.disabled = false; // still allow generation with fallback
+            }
+        }
+
         // ---- AI rewrite (with physics + logic) ----
         async function rewriteWithAI(raw) {
             if (!modelReady || !model) {
@@ -370,17 +379,14 @@
                     max_new_tokens: 80,
                     temperature: 0.7,
                 });
-                // result is an array of {generated_text: ...}
                 let rewritten = result[0]?.generated_text || raw;
                 // Clean up: remove the original prompt if repeated
                 if (rewritten.includes(raw) && rewritten.length > raw.length + 20) {
-                    // Keep only the new part
                     const parts = rewritten.split(raw);
                     if (parts.length > 1) {
                         rewritten = parts[1].trim();
                     }
                 }
-                // Ensure it's not empty
                 if (!rewritten || rewritten.length < 3) rewritten = enhanceLocally(raw);
                 return rewritten;
             } catch (err) {
@@ -433,7 +439,6 @@
             const seed = jsonObj.seed;
             const cacheBuster = Date.now();
 
-            // Use enhanced prompt for generation
             const url =
                 `https://image.pollinations.ai/prompt/${encodeURIComponent(enhanced)}?width=512&height=512&nologo=true&seed=${seed}&_=${cacheBuster}`;
 
@@ -461,11 +466,8 @@
         });
 
         // ---- Init ----
-        // Load the model when page loads
         window.addEventListener('load', () => {
             loadModel();
-            // Optionally set a default prompt (but we removed it as per request)
-            // promptInput.value = '';
         });
     </script>
 </body>
