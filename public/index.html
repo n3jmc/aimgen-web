@@ -269,11 +269,19 @@
         </div>
     </div>
 
-    <!-- Load Transformers.js from CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.0/dist/transformers.min.js">
+    <!-- Use importmap for Transformers.js (ES modules) -->
+    <script type="importmap">
+    {
+        "imports": {
+            "@xenova/transformers": "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.0/dist/transformers.min.js"
+        }
+    }
     </script>
 
-    <script>
+    <script type="module">
+        // ---- Import pipeline from Transformers.js ----
+        import { pipeline } from '@xenova/transformers';
+
         // ---- DOM refs ----
         const promptInput = document.getElementById('prompt');
         const generateBtn = document.getElementById('generateBtn');
@@ -335,17 +343,12 @@
             return enhanced;
         }
 
-        // ---- Load AI model with fallback ----
+        // ---- Load AI model ----
         async function loadModel() {
             try {
                 modelStatus.textContent = '⏳ Loading AI model (FLAN-T5-small)...';
                 modelStatus.className = 'model-status loading';
-                // Check if transformers is available
-                if (typeof transformers === 'undefined') {
-                    throw new Error('Transformers library not loaded.');
-                }
-                const pipeline = transformers.pipeline;
-                // Use a smaller model for faster loading (optional)
+
                 // Try with flan-t5-small, if fails fallback to tiny-random-t5
                 try {
                     model = await pipeline('text2text-generation', 'Xenova/flan-t5-small');
@@ -362,14 +365,13 @@
                 modelStatus.textContent = '⚠️ AI model failed. Using local enhancer.';
                 modelStatus.className = 'model-status failed';
                 modelReady = false;
-                generateBtn.disabled = false; // still allow generation with fallback
+                generateBtn.disabled = false; // still allow generation
             }
         }
 
-        // ---- AI rewrite (with physics + logic) ----
+        // ---- AI rewrite ----
         async function rewriteWithAI(raw) {
             if (!modelReady || !model) {
-                // Fallback
                 return enhanceLocally(raw);
             }
 
@@ -380,7 +382,7 @@
                     temperature: 0.7,
                 });
                 let rewritten = result[0]?.generated_text || raw;
-                // Clean up: remove the original prompt if repeated
+                // Clean up
                 if (rewritten.includes(raw) && rewritten.length > raw.length + 20) {
                     const parts = rewritten.split(raw);
                     if (parts.length > 1) {
@@ -415,7 +417,6 @@
 
             await appendStep(`🧠 <span class="highlight">AI rewriting prompt with physics + logic...</span>`, 600);
 
-            // ---- Call AI rewrite ----
             const enhanced = await rewriteWithAI(rawPrompt);
 
             await appendStep(`📝 Original: "${rawPrompt}"`, 400);
@@ -435,10 +436,8 @@
             const jsonStr = JSON.stringify(jsonObj, null, 2);
             await appendStep(`📦 <div class="json-box">${jsonStr}</div>`, 400);
 
-            // ---- Generate image ----
             const seed = jsonObj.seed;
             const cacheBuster = Date.now();
-
             const url =
                 `https://image.pollinations.ai/prompt/${encodeURIComponent(enhanced)}?width=512&height=512&nologo=true&seed=${seed}&_=${cacheBuster}`;
 
@@ -466,9 +465,7 @@
         });
 
         // ---- Init ----
-        window.addEventListener('load', () => {
-            loadModel();
-        });
+        loadModel();
     </script>
 </body>
 </html>
