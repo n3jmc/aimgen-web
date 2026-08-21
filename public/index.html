@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Image Generator</title>
+    <title>AI Image Gen — Smart Prompt</title>
     <style>
         * {
             box-sizing: border-box;
@@ -36,6 +36,15 @@
             color: #aaa;
             margin-bottom: 20px;
         }
+        .model-status {
+            font-size: 0.8rem;
+            color: #7c5cfc;
+            margin-bottom: 16px;
+            padding: 6px 16px;
+            border-radius: 40px;
+            background: #14142a;
+            display: inline-block;
+        }
         input[type="text"] {
             width: 100%;
             padding: 14px 18px;
@@ -67,6 +76,12 @@
         button:active {
             transform: translateY(4px);
             box-shadow: 0 2px 0 #4f3a9e;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 6px 0 #4f3a9e;
         }
 
         .image-wrapper {
@@ -173,7 +188,7 @@
         @keyframes fadeInStep {
             to { opacity: 1; }
         }
-        .prep-body .step+.step {
+        .prep-body .step + .step {
             margin-top: 8px;
         }
         .prep-body .highlight {
@@ -218,6 +233,10 @@
             justify-content: center;
             gap: 20px;
         }
+        .footer a {
+            color: #7c5cfc;
+            text-decoration: none;
+        }
     </style>
 </head>
 <body>
@@ -225,8 +244,10 @@
         <h1>🎨 AI Image Gen</h1>
         <p class="sub">Describe what you want to see</p>
 
+        <div id="modelStatus" class="model-status">⏳ Loading AI model...</div>
+
         <input type="text" id="prompt" placeholder="e.g., cat astronaut on Mars" />
-        <button id="generateBtn">✨ Generate</button>
+        <button id="generateBtn" disabled>✨ Generate</button>
 
         <div class="prep-wrapper" id="prepWrapper">
             <div class="prep-header" id="prepToggle">
@@ -248,11 +269,16 @@
 
         <div class="footer">
             <span>⚡ Powered by Pollinations.ai</span>
-            <span>🚀 Hosted on Render</span>
+            <span>🧠 AI Enhancer: FLAN-T5 (browser)</span>
         </div>
     </div>
 
+    <!-- Load Transformers.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.0/dist/transformers.min.js">
+    </script>
+
     <script>
+        // ---- DOM refs ----
         const promptInput = document.getElementById('prompt');
         const generateBtn = document.getElementById('generateBtn');
         const resultImg = document.getElementById('result');
@@ -261,15 +287,20 @@
         const prepToggle = document.getElementById('prepToggle');
         const prepArrow = document.getElementById('prepArrow');
         const imageOverlay = document.getElementById('imageOverlay');
+        const modelStatus = document.getElementById('modelStatus');
 
         let prepExpanded = true;
+        let model = null;
+        let modelReady = false;
 
+        // ---- Toggle prep ----
         prepToggle.addEventListener('click', () => {
             prepExpanded = !prepExpanded;
             prepBody.classList.toggle('collapsed', !prepExpanded);
             prepArrow.classList.toggle('open', prepExpanded);
         });
 
+        // ---- Helper: append step ----
         function appendStep(html, delay = 0) {
             return new Promise(resolve => {
                 setTimeout(() => {
@@ -283,8 +314,26 @@
             });
         }
 
-        // ---- LOCAL prompt enhancer (no internet) ----
-        function enhancePromptLocally(raw) {
+        // ---- Load AI model ----
+        async function loadModel() {
+            try {
+                modelStatus.textContent = '⏳ Loading AI model (FLAN-T5)... this may take a minute.';
+                const pipeline = transformers.pipeline;
+                // Use text2text-generation for rewriting
+                model = await pipeline('text2text-generation', 'Xenova/flan-t5-small');
+                modelReady = true;
+                modelStatus.textContent = '✅ AI model ready!';
+                generateBtn.disabled = false;
+            } catch (err) {
+                console.error('Model load error:', err);
+                modelStatus.textContent = '⚠️ AI model failed. Using local enhancer.';
+                modelReady = false;
+                generateBtn.disabled = false; // still allow generation with fallback
+            }
+        }
+
+        // ---- Local fallback enhancer ----
+        function enhanceLocally(raw) {
             const styleMap = {
                 'cat': 'furry, detailed fur, expressive eyes',
                 'dog': 'fluffy, playful, detailed coat',
@@ -297,7 +346,6 @@
                 'portrait': 'detailed face, expressive, realistic skin texture',
                 'animal': 'wildlife, detailed fur/feathers, natural lighting',
             };
-
             let enhanced = raw;
             for (const [key, value] of Object.entries(styleMap)) {
                 if (raw.toLowerCase().includes(key)) {
@@ -305,14 +353,43 @@
                     break;
                 }
             }
-
-            // Always add quality boosters
             enhanced += `, highly detailed, cinematic lighting, 8k, photorealistic, masterpiece`;
-
             return enhanced;
         }
 
-        // ---- Generate ----
+        // ---- AI rewrite (with physics + logic) ----
+        async function rewriteWithAI(raw) {
+            if (!modelReady || !model) {
+                // Fallback
+                return enhanceLocally(raw);
+            }
+
+            const prompt = `Rewrite this prompt for an AI image generator. Add realistic physics, logical scene composition, and avoid unnatural elements. Output only the rewritten prompt: "${raw}"`;
+            try {
+                const result = await model(prompt, {
+                    max_new_tokens: 80,
+                    temperature: 0.7,
+                });
+                // result is an array of {generated_text: ...}
+                let rewritten = result[0]?.generated_text || raw;
+                // Clean up: remove the original prompt if repeated
+                if (rewritten.includes(raw) && rewritten.length > raw.length + 20) {
+                    // Keep only the new part
+                    const parts = rewritten.split(raw);
+                    if (parts.length > 1) {
+                        rewritten = parts[1].trim();
+                    }
+                }
+                // Ensure it's not empty
+                if (!rewritten || rewritten.length < 3) rewritten = enhanceLocally(raw);
+                return rewritten;
+            } catch (err) {
+                console.error('AI rewrite error:', err);
+                return enhanceLocally(raw);
+            }
+        }
+
+        // ---- Generate image ----
         async function generateImage() {
             const rawPrompt = promptInput.value.trim();
             if (!rawPrompt) {
@@ -330,10 +407,10 @@
 
             await appendStep(`<span class="spinner-inline" style="display:inline-block;width:14px;height:14px;border:2px solid #333;border-top:2px solid #7c5cfc;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:8px;"></span> <span class="highlight">Preparing...</span>`, 0);
 
-            await appendStep(`🧠 <span class="highlight">Analyzing prompt locally...</span>`, 600);
+            await appendStep(`🧠 <span class="highlight">AI rewriting prompt with physics + logic...</span>`, 600);
 
-            // ---- Local enhancement ----
-            const enhanced = enhancePromptLocally(rawPrompt);
+            // ---- Call AI rewrite ----
+            const enhanced = await rewriteWithAI(rawPrompt);
 
             await appendStep(`📝 Original: "${rawPrompt}"`, 400);
             await appendStep(`✨ Enhanced: "${enhanced}"`, 600);
@@ -356,6 +433,7 @@
             const seed = jsonObj.seed;
             const cacheBuster = Date.now();
 
+            // Use enhanced prompt for generation
             const url =
                 `https://image.pollinations.ai/prompt/${encodeURIComponent(enhanced)}?width=512&height=512&nologo=true&seed=${seed}&_=${cacheBuster}`;
 
@@ -376,13 +454,19 @@
             };
         }
 
+        // ---- Event listeners ----
         generateBtn.addEventListener('click', generateImage);
         promptInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') generateImage();
         });
 
-        // ---- No default prompt ----
-        // (input starts empty)
+        // ---- Init ----
+        // Load the model when page loads
+        window.addEventListener('load', () => {
+            loadModel();
+            // Optionally set a default prompt (but we removed it as per request)
+            // promptInput.value = '';
+        });
     </script>
 </body>
 </html>
