@@ -69,7 +69,6 @@
             box-shadow: 0 2px 0 #4f3a9e;
         }
 
-        /* ----- IMAGE WRAPPER + OVERLAY ----- */
         .image-wrapper {
             position: relative;
             margin-top: 20px;
@@ -120,7 +119,6 @@
             to { transform: rotate(360deg); }
         }
 
-        /* ----- PREPARATION LOG ----- */
         .prep-wrapper {
             margin-top: 20px;
             text-align: left;
@@ -175,7 +173,7 @@
         @keyframes fadeInStep {
             to { opacity: 1; }
         }
-        .prep-body .step + .step {
+        .prep-body .step+.step {
             margin-top: 8px;
         }
         .prep-body .highlight {
@@ -204,14 +202,12 @@
             border-radius: 10px;
         }
 
-        /* ----- ERROR ----- */
         .error-msg {
             color: #ff4757;
             margin-top: 10px;
             font-size: 0.9rem;
             display: none;
         }
-
         .footer {
             margin-top: 20px;
             padding-top: 16px;
@@ -219,13 +215,8 @@
             font-size: 0.8rem;
             color: #666;
             display: flex;
-            justify-content: space-between;
-        }
-        .visitor-badge {
-            background: #2a2a42;
-            padding: 4px 16px;
-            border-radius: 40px;
-            color: #aaa;
+            justify-content: center;
+            gap: 20px;
         }
     </style>
 </head>
@@ -237,20 +228,16 @@
         <input type="text" id="prompt" placeholder="e.g., cat astronaut on Mars" />
         <button id="generateBtn">✨ Generate</button>
 
-        <!-- PREPARATION LOG -->
         <div class="prep-wrapper" id="prepWrapper">
             <div class="prep-header" id="prepToggle">
                 <span>📋 Preparation details</span>
                 <span class="arrow" id="prepArrow">▼</span>
             </div>
-            <div class="prep-body" id="prepBody">
-                <!-- steps injected here -->
-            </div>
+            <div class="prep-body" id="prepBody"></div>
         </div>
 
         <div id="errorMsg" class="error-msg"></div>
 
-        <!-- IMAGE + OVERLAY -->
         <div class="image-wrapper">
             <img id="result" src="" alt="Your generated image" />
             <div id="imageOverlay" class="image-overlay">
@@ -260,8 +247,8 @@
         </div>
 
         <div class="footer">
-            <span class="hint">Powered by Pollinations.ai</span>
-            <span class="visitor-badge">👁️ <span id="visitorCount">0</span> visits</span>
+            <span>⚡ Powered by Pollinations.ai</span>
+            <span>🚀 Hosted on Render</span>
         </div>
     </div>
 
@@ -277,14 +264,12 @@
 
         let prepExpanded = true;
 
-        // ---- Toggle prep log ----
         prepToggle.addEventListener('click', () => {
             prepExpanded = !prepExpanded;
             prepBody.classList.toggle('collapsed', !prepExpanded);
             prepArrow.classList.toggle('open', prepExpanded);
         });
 
-        // ---- Helper: append step with delay ----
         function appendStep(html, delay = 0) {
             return new Promise(resolve => {
                 setTimeout(() => {
@@ -298,37 +283,66 @@
             });
         }
 
+        // ---- LOCAL prompt enhancer (no internet) ----
+        function enhancePromptLocally(raw) {
+            const styleMap = {
+                'cat': 'furry, detailed fur, expressive eyes',
+                'dog': 'fluffy, playful, detailed coat',
+                'city': 'urban, neon lights, skyscrapers, busy streets',
+                'sunset': 'golden hour, warm colors, dramatic sky',
+                'forest': 'dense trees, mystical, sun rays through leaves',
+                'space': 'stars, nebula, cosmic, otherworldly',
+                'cyberpunk': 'neon, rain, futuristic, high-tech',
+                'fantasy': 'magical, epic, mythical creatures, glowing',
+                'portrait': 'detailed face, expressive, realistic skin texture',
+                'animal': 'wildlife, detailed fur/feathers, natural lighting',
+            };
+
+            let enhanced = raw;
+            for (const [key, value] of Object.entries(styleMap)) {
+                if (raw.toLowerCase().includes(key)) {
+                    enhanced += `, ${value}`;
+                    break;
+                }
+            }
+
+            // Always add quality boosters
+            enhanced += `, highly detailed, cinematic lighting, 8k, photorealistic, masterpiece`;
+
+            return enhanced;
+        }
+
         // ---- Generate ----
         async function generateImage() {
-            const prompt = promptInput.value.trim();
-            if (!prompt) {
+            const rawPrompt = promptInput.value.trim();
+            if (!rawPrompt) {
                 alert('Please enter a description first.');
                 return;
             }
 
-            // Reset prep log
             prepBody.innerHTML = '';
             prepBody.classList.remove('collapsed');
             prepExpanded = true;
             prepArrow.classList.add('open');
 
-            // Show overlay, hide error
             imageOverlay.style.display = 'flex';
             errorDiv.style.display = 'none';
 
-            // ---- Step 1: Preparing ----
             await appendStep(`<span class="spinner-inline" style="display:inline-block;width:14px;height:14px;border:2px solid #333;border-top:2px solid #7c5cfc;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:8px;"></span> <span class="highlight">Preparing...</span>`, 0);
 
-            await appendStep(`🧠 <span class="highlight">AI analyzing prompt...</span>`, 800);
+            await appendStep(`🧠 <span class="highlight">Analyzing prompt locally...</span>`, 600);
 
-            const analysis = `I see a vivid scene: "${prompt}". The composition suggests a focus on lighting and atmosphere. The subject will be placed in a dynamic environment with rich color contrast.`;
-            await appendStep(`📝 ${analysis}`, 600);
+            // ---- Local enhancement ----
+            const enhanced = enhancePromptLocally(rawPrompt);
 
-            await appendStep(`⚙️ <span class="highlight">Building JSON structure...</span>`, 600);
+            await appendStep(`📝 Original: "${rawPrompt}"`, 400);
+            await appendStep(`✨ Enhanced: "${enhanced}"`, 600);
+
+            await appendStep(`⚙️ <span class="highlight">Building JSON structure...</span>`, 400);
 
             const jsonObj = {
-                prompt: prompt,
-                enhanced: `${prompt}, highly detailed, cinematic lighting, 8k, photorealistic, masterpiece`,
+                original: rawPrompt,
+                enhanced: enhanced,
                 style: "photorealistic, cinematic",
                 seed: Math.floor(Math.random() * 1000000),
                 width: 512,
@@ -336,15 +350,14 @@
                 timestamp: new Date().toISOString()
             };
             const jsonStr = JSON.stringify(jsonObj, null, 2);
-            const jsonHtml = `<div class="json-box">${jsonStr}</div>`;
-            await appendStep(`📦 ${jsonHtml}`, 400);
+            await appendStep(`📦 <div class="json-box">${jsonStr}</div>`, 400);
 
             // ---- Generate image ----
-            const enhancedPrompt = `${prompt}, highly detailed, cinematic lighting, 8k, photorealistic, masterpiece`;
             const seed = jsonObj.seed;
             const cacheBuster = Date.now();
 
-            const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=512&height=512&nologo=true&seed=${seed}&_=${cacheBuster}`;
+            const url =
+                `https://image.pollinations.ai/prompt/${encodeURIComponent(enhanced)}?width=512&height=512&nologo=true&seed=${seed}&_=${cacheBuster}`;
 
             resultImg.src = url;
 
@@ -358,7 +371,7 @@
 
             resultImg.onerror = () => {
                 imageOverlay.style.display = 'none';
-                errorDiv.textContent = '❌ Generation failed. Try a different prompt.';
+                errorDiv.textContent = '❌ Generation failed. Try again or change your prompt.';
                 errorDiv.style.display = 'block';
             };
         }
@@ -368,21 +381,8 @@
             if (e.key === 'Enter') generateImage();
         });
 
-        // ---- Visitor counter ----
-        async function fetchVisitorCount() {
-            try {
-                const res = await fetch('counter.php');
-                const count = await res.text();
-                document.getElementById('visitorCount').textContent = count;
-            } catch {}
-        }
-
-        // ---- Auto-load sample ----
-        window.addEventListener('load', () => {
-            promptInput.value = 'a beautiful sunset over a cyberpunk city';
-            generateImage();
-            fetchVisitorCount();
-        });
+        // ---- No default prompt ----
+        // (input starts empty)
     </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2e3246169e97e08',t:'MTc4NzI0NzE5Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
