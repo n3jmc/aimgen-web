@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Image Gen — Terminal</title>
+    <title>AI Image Gen — Chat</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Courier New', monospace;
+            font-family: system-ui, -apple-system, sans-serif;
         }
         body {
-            background: #0a0a0a;
-            color: #c0c0c0;
+            background: #0f0f1a;
+            color: #eee;
             height: 100vh;
             display: flex;
             flex-direction: column;
@@ -24,219 +24,260 @@
         .topbar {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
             padding: 8px 16px;
-            background: #111;
-            border-bottom: 1px solid #2a2a2a;
+            background: #14142a;
+            border-radius: 12px;
             flex-shrink: 0;
             flex-wrap: wrap;
+            margin-bottom: 12px;
         }
         .topbar h1 {
             font-size: 1.2rem;
             color: #7c5cfc;
-            letter-spacing: 1px;
+            font-weight: 700;
         }
-        .topbar input[type="text"] {
-            flex: 1;
-            min-width: 140px;
-            background: #1a1a1a;
-            border: 1px solid #2a2a2a;
-            color: #eee;
-            padding: 8px 14px;
-            border-radius: 6px;
-            font-size: 0.9rem;
-            outline: none;
+        .topbar .model-status {
+            font-size: 0.75rem;
+            color: #666;
+            margin-left: auto;
+            white-space: nowrap;
         }
-        .topbar input:focus {
-            border-color: #7c5cfc;
-        }
-        .topbar input:disabled {
-            opacity: 0.4;
-        }
+        .topbar .model-status.ready { color: #2ed573; }
+        .topbar .model-status.loading { color: #feca57; }
+        .topbar .model-status.failed { color: #ff4757; }
         .topbar select {
-            background: #1a1a1a;
-            border: 1px solid #2a2a2a;
+            background: #1e1e32;
+            border: 1px solid #2a2a42;
             color: #eee;
-            padding: 8px 12px;
-            border-radius: 6px;
+            padding: 6px 12px;
+            border-radius: 8px;
             font-size: 0.9rem;
             outline: none;
-            cursor: pointer;
         }
         .topbar select:focus {
             border-color: #7c5cfc;
         }
-        .topbar button {
-            background: #7c5cfc;
-            border: none;
-            color: #fff;
-            padding: 8px 22px;
-            border-radius: 6px;
-            font-weight: bold;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: 0.15s;
-            box-shadow: 0 3px 0 #4f3a9e;
-            white-space: nowrap;
-        }
-        .topbar button:active {
-            transform: translateY(3px);
-            box-shadow: 0 0px 0 #4f3a9e;
-        }
-        .topbar button:disabled {
-            opacity: 0.4;
-            transform: none;
-            box-shadow: 0 3px 0 #4f3a9e;
-            cursor: not-allowed;
-        }
-        .model-status {
-            font-size: 0.7rem;
-            color: #666;
-            white-space: nowrap;
-        }
-        .model-status.ready {
-            color: #2ed573;
-        }
-        .model-status.loading {
-            color: #feca57;
-        }
-        .model-status.failed {
-            color: #ff4757;
+        .topbar .count-label {
+            font-size: 0.8rem;
+            color: #888;
         }
 
-        /* ---- MAIN PANEL (left + right) ---- */
+        /* ---- MAIN PANEL (chat + gallery) ---- */
         .main {
             display: flex;
             flex: 1;
             min-height: 0;
             gap: 12px;
-            padding-top: 12px;
         }
 
-        /* LEFT: Terminal log */
-        .terminal {
+        /* LEFT: Chat */
+        .chat {
             flex: 1;
             min-width: 200px;
-            background: #0d0d0d;
-            border: 1px solid #1a1a1a;
-            border-radius: 8px;
-            padding: 12px 14px;
-            overflow-y: auto;
-            font-size: 0.85rem;
-            line-height: 1.6;
-            height: 100%;
-            max-height: calc(100vh - 140px);
+            background: #14142a;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #1a1a2e;
         }
-        .terminal::-webkit-scrollbar {
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            scroll-behavior: smooth;
+        }
+        .chat-messages::-webkit-scrollbar {
             width: 5px;
         }
-        .terminal::-webkit-scrollbar-track {
-            background: #111;
+        .chat-messages::-webkit-scrollbar-track {
+            background: #0f0f1a;
         }
-        .terminal::-webkit-scrollbar-thumb {
-            background: #333;
-            border-radius: 6px;
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #2a2a42;
+            border-radius: 10px;
         }
 
-        .terminal .line {
-            opacity: 0;
-            animation: fadeIn 0.3s forwards;
-            padding: 2px 0;
-            border-bottom: 1px solid #0f0f0f;
+        /* Chat bubbles */
+        .message {
+            max-width: 85%;
+            padding: 10px 16px;
+            border-radius: 18px;
+            line-height: 1.5;
+            font-size: 0.95rem;
+            animation: fadeIn 0.3s ease;
+            word-wrap: break-word;
         }
-        .terminal .line .highlight {
-            color: #7c5cfc;
+        .message.user {
+            align-self: flex-end;
+            background: #2a2a42;
+            border-bottom-right-radius: 4px;
         }
-        .terminal .line .dim {
+        .message.ai {
+            align-self: flex-start;
+            background: #1e1e32;
+            border-bottom-left-radius: 4px;
+        }
+        .message .meta {
+            font-size: 0.7rem;
+            color: #666;
+            margin-top: 4px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .message .meta .seed {
             color: #555;
         }
-        .terminal .line .green {
-            color: #2ed573;
+        .message .image-preview {
+            margin-top: 10px;
+            border-radius: 12px;
+            overflow: hidden;
+            max-width: 100%;
         }
-        .terminal .line .yellow {
-            color: #feca57;
-        }
-        .terminal .line .red {
-            color: #ff4757;
-        }
-        .terminal .prompt-line {
-            display: flex;
-            gap: 6px;
-            align-items: baseline;
-        }
-        .terminal .prompt-line .prompt-symbol {
-            color: #7c5cfc;
-            font-weight: bold;
+        .message .image-preview img {
+            width: 100%;
+            max-height: 300px;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 1px solid #2a2a42;
+            display: block;
         }
 
-        /* Typing dot animation */
+        /* Progress bar inside AI message */
+        .progress-wrap {
+            width: 100%;
+            height: 6px;
+            background: #2a2a42;
+            border-radius: 10px;
+            margin: 8px 0 4px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #7c5cfc, #a78bfa);
+            width: 0%;
+            border-radius: 10px;
+            transition: width 0.15s linear;
+        }
+
         .typing-dots::after {
             content: '';
             animation: dots 1.2s steps(3, end) infinite;
         }
         @keyframes dots {
-            0% {
-                content: '';
-            }
-            33% {
-                content: '.';
-            }
-            66% {
-                content: '..';
-            }
-            100% {
-                content: '...';
-            }
+            0% { content: ''; }
+            33% { content: '.'; }
+            66% { content: '..'; }
+            100% { content: '...'; }
         }
+
         @keyframes fadeIn {
-            to {
-                opacity: 1;
-            }
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Chat input */
+        .chat-input {
+            padding: 12px 16px;
+            background: #0f0f1a;
+            border-top: 1px solid #1a1a2e;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .chat-input input {
+            flex: 1;
+            background: #1a1a2e;
+            border: 1px solid #2a2a42;
+            color: #eee;
+            padding: 10px 16px;
+            border-radius: 40px;
+            font-size: 0.95rem;
+            outline: none;
+        }
+        .chat-input input:focus {
+            border-color: #7c5cfc;
+        }
+        .chat-input input:disabled {
+            opacity: 0.4;
+        }
+        .chat-input button {
+            background: #7c5cfc;
+            border: none;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: 0.15s;
+            box-shadow: 0 3px 0 #4f3a9e;
+        }
+        .chat-input button:active {
+            transform: translateY(3px);
+            box-shadow: 0 0px 0 #4f3a9e;
+        }
+        .chat-input button:disabled {
+            opacity: 0.4;
+            transform: none;
+            box-shadow: 0 3px 0 #4f3a9e;
+            cursor: not-allowed;
         }
 
         /* RIGHT: Gallery */
         .gallery {
-            flex: 1.5;
-            min-width: 200px;
-            background: #0d0d0d;
-            border: 1px solid #1a1a1a;
-            border-radius: 8px;
-            padding: 12px;
+            flex: 1;
+            min-width: 150px;
+            max-width: 400px;
+            background: #14142a;
+            border-radius: 16px;
+            padding: 16px;
             overflow-y: auto;
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
             gap: 10px;
             align-content: start;
-            max-height: calc(100vh - 140px);
+            border: 1px solid #1a1a2e;
         }
         .gallery::-webkit-scrollbar {
             width: 5px;
         }
         .gallery::-webkit-scrollbar-track {
-            background: #111;
+            background: #0f0f1a;
         }
         .gallery::-webkit-scrollbar-thumb {
-            background: #333;
-            border-radius: 6px;
+            background: #2a2a42;
+            border-radius: 10px;
         }
-
         .gallery .img-wrap {
             position: relative;
-            border-radius: 6px;
+            border-radius: 8px;
             overflow: hidden;
-            border: 1px solid #1a1a1a;
-            transition: border 0.2s;
+            border: 1px solid #1a1a2e;
             aspect-ratio: 1/1;
-            background: #141414;
-        }
-        .gallery .img-wrap:hover {
-            border-color: #7c5cfc;
+            background: #0f0f1a;
         }
         .gallery .img-wrap img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             display: block;
+        }
+        .gallery .img-wrap .badge {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            background: rgba(0,0,0,0.7);
+            color: #888;
+            font-size: 0.6rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            backdrop-filter: blur(2px);
         }
         .gallery .img-wrap .placeholder {
             width: 100%;
@@ -246,18 +287,14 @@
             justify-content: center;
             color: #333;
             font-size: 0.7rem;
-            background: #111;
+            background: #0f0f1a;
         }
-        .gallery .img-wrap .badge {
-            position: absolute;
-            bottom: 4px;
-            right: 4px;
-            background: rgba(0, 0, 0, 0.7);
-            color: #888;
-            font-size: 0.6rem;
-            padding: 2px 8px;
-            border-radius: 4px;
-            backdrop-filter: blur(2px);
+        .gallery-label {
+            font-size: 0.7rem;
+            color: #555;
+            text-align: center;
+            padding: 4px;
+            grid-column: 1 / -1;
         }
 
         /* ---- RESPONSIVE ---- */
@@ -265,18 +302,13 @@
             .main {
                 flex-direction: column;
             }
-            .terminal {
-                max-height: 40vh;
-            }
             .gallery {
-                max-height: 50vh;
-                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                max-width: none;
+                max-height: 200px;
+                grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
             }
-            .topbar {
-                gap: 8px;
-            }
-            .topbar h1 {
-                font-size: 1rem;
+            .topbar .count-label {
+                display: none;
             }
         }
     </style>
@@ -285,8 +317,8 @@
 
     <!-- TOP BAR -->
     <div class="topbar">
-        <h1>⧩ AI</h1>
-        <input type="text" id="prompt" placeholder="e.g., cat astronaut on Mars" disabled />
+        <h1>🎨 Image Gen</h1>
+        <span class="count-label">Count:</span>
         <select id="countSelect">
             <option value="1">1</option>
             <option value="2">2</option>
@@ -299,28 +331,37 @@
             <option value="9">9</option>
             <option value="10">10</option>
         </select>
-        <button id="generateBtn" disabled>⚡ Generate</button>
         <span class="model-status" id="modelStatus">⏳ loading...</span>
     </div>
 
     <!-- MAIN -->
     <div class="main">
-        <!-- Left: Terminal -->
-        <div class="terminal" id="terminal">
-            <div class="line dim">⧩ Terminal ready.</div>
-            <div class="line dim">Enter a prompt and hit Generate.</div>
+        <!-- LEFT: Chat -->
+        <div class="chat">
+            <div class="chat-messages" id="chatMessages">
+                <div class="message ai">
+                    👋 Welcome! Enter a prompt and I'll generate images.
+                </div>
+            </div>
+            <div class="chat-input">
+                <input type="text" id="promptInput" placeholder="Describe an image..." disabled />
+                <button id="generateBtn" disabled>Generate</button>
+            </div>
         </div>
 
-        <!-- Right: Gallery -->
-        <div class="gallery" id="gallery"></div>
+        <!-- RIGHT: Gallery -->
+        <div class="gallery" id="gallery">
+            <div class="gallery-label">📸 Gallery</div>
+        </div>
     </div>
 
+    <!-- IMPORTMAP -->
     <script type="importmap">
-        {
-            "imports": {
-                "@xenova/transformers": "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.0/dist/transformers.min.js"
-            }
+    {
+        "imports": {
+            "@xenova/transformers": "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.0/dist/transformers.min.js"
         }
+    }
     </script>
 
     <script type="module">
@@ -329,23 +370,43 @@
         env.remoteHost = 'https://huggingface.co';
 
         // ---- DOM refs ----
-        const promptInput = document.getElementById('prompt');
+        const promptInput = document.getElementById('promptInput');
         const generateBtn = document.getElementById('generateBtn');
         const countSelect = document.getElementById('countSelect');
         const modelStatus = document.getElementById('modelStatus');
-        const terminal = document.getElementById('terminal');
+        const chatMessages = document.getElementById('chatMessages');
         const gallery = document.getElementById('gallery');
 
         let model = null;
         let modelReady = false;
+        let imageCount = 0; // for badge numbers
 
-        // ---- Terminal logging ----
-        function logLine(html, cls = '') {
+        // ---- Helpers ----
+        function addMessage(text, type, extra = '') {
             const div = document.createElement('div');
-            div.className = `line ${cls}`;
-            div.innerHTML = html;
-            terminal.appendChild(div);
-            terminal.scrollTop = terminal.scrollHeight;
+            div.className = `message ${type}`;
+            div.innerHTML = text + extra;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return div;
+        }
+
+        function addImageToGallery(url, index) {
+            const wrap = document.createElement('div');
+            wrap.className = 'img-wrap';
+            const img = document.createElement('img');
+            img.src = url;
+            img.alt = `Image ${index}`;
+            img.loading = 'lazy';
+            wrap.appendChild(img);
+            const badge = document.createElement('div');
+            badge.className = 'badge';
+            badge.textContent = `#${index}`;
+            wrap.appendChild(badge);
+            // Click to open full-size
+            img.addEventListener('click', () => window.open(url, '_blank'));
+            // Insert at the beginning (latest first)
+            gallery.insertBefore(wrap, gallery.firstChild);
         }
 
         // ---- Local enhancer ----
@@ -389,77 +450,96 @@
             }
         }
 
-        // ---- Generate N images ----
+        // ---- Generate images ----
         async function generateImages() {
             const raw = promptInput.value.trim();
-            if (!raw) { alert('Enter a prompt.'); return; }
+            if (!raw) { alert('Please enter a prompt.'); return; }
             const count = parseInt(countSelect.value) || 3;
 
             // Disable UI
             generateBtn.disabled = true;
             promptInput.disabled = true;
 
-            logLine(`<span class="prompt-symbol">➜</span> <span class="highlight">${raw}</span>`, '');
+            // Add user message
+            addMessage(`💬 ${raw}`, 'user');
+
+            // Add AI initial response
+            const aiMsg = addMessage(`⏳ Thinking...`, 'ai');
 
             // Rewrite
-            logLine(`<span class="dim">⧩ AI rewriting...</span>`);
             const enhanced = await rewriteWithAI(raw);
-            logLine(`<span class="dim">⧩ enhanced: </span><span class="highlight">${enhanced}</span>`);
+            aiMsg.innerHTML = `🔍 <strong>Enhanced prompt:</strong><br>${enhanced}`;
 
-            // Generate each image
-            const baseUrl =
-                `https://image.pollinations.ai/prompt/${encodeURIComponent(enhanced)}?width=512&height=512&nologo=true`;
-
+            // Add a new AI message for each image
             for (let i = 0; i < count; i++) {
                 const seed = Math.floor(Math.random() * 1000000);
-                const url = `${baseUrl}&seed=${seed}&_=${Date.now() + i}`;
+                const url =
+                    `https://image.pollinations.ai/prompt/${encodeURIComponent(enhanced)}?width=512&height=512&nologo=true&seed=${seed}&_=${Date.now() + i}`;
 
-                // Add placeholder
-                const wrap = document.createElement('div');
-                wrap.className = 'img-wrap';
-                const placeholder = document.createElement('div');
-                placeholder.className = 'placeholder';
-                placeholder.textContent = `⏳ ${i+1}`;
-                wrap.appendChild(placeholder);
-                gallery.prepend(wrap);
+                // Create a message for this image
+                const imgMsg = document.createElement('div');
+                imgMsg.className = 'message ai';
+                imgMsg.innerHTML = `
+                    <div>🖼️ Generating image ${i+1}/${count} <span class="seed">(seed: ${seed})</span></div>
+                    <div class="progress-wrap"><div class="progress-bar" id="progress-${i}"></div></div>
+                    <div style="font-size:0.8rem;color:#888;">0%</div>
+                    <div class="image-preview" id="preview-${i}"></div>
+                `;
+                chatMessages.appendChild(imgMsg);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
 
-                logLine(`<span class="dim">⧩ generating #${i+1} (seed ${seed})</span>`);
+                // Simulate progress (0-100 over ~3 seconds)
+                const progressBar = document.getElementById(`progress-${i}`);
+                const progressText = imgMsg.querySelector('div:last-child'); // the percentage div
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += Math.random() * 6 + 2;
+                    if (progress > 100) progress = 100;
+                    progressBar.style.width = progress + '%';
+                    if (progressText) progressText.textContent = Math.round(progress) + '%';
+                    if (progress >= 100) clearInterval(interval);
+                }, 80);
 
                 // Load image
+                const previewDiv = document.getElementById(`preview-${i}`);
                 const img = document.createElement('img');
                 img.src = url;
                 img.alt = `Image ${i+1}`;
-                img.loading = 'lazy';
 
-                // On load
                 img.onload = () => {
-                    wrap.innerHTML = '';
-                    wrap.appendChild(img);
-                    // badge
-                    const badge = document.createElement('div');
-                    badge.className = 'badge';
-                    badge.textContent = `#${i+1}`;
-                    wrap.appendChild(badge);
-                    // click to enlarge
-                    img.addEventListener('click', () => {
-                        window.open(img.src, '_blank');
-                    });
+                    clearInterval(interval);
+                    progressBar.style.width = '100%';
+                    if (progressText) progressText.textContent = '100%';
+                    previewDiv.innerHTML = '';
+                    previewDiv.appendChild(img);
+                    // Add to gallery
+                    imageCount++;
+                    addImageToGallery(url, imageCount);
+                    // Remove progress bar and text after a moment
+                    setTimeout(() => {
+                        const progWrap = imgMsg.querySelector('.progress-wrap');
+                        if (progWrap) progWrap.style.display = 'none';
+                        const pct = imgMsg.querySelector('div[style*="font-size:0.8rem"]');
+                        if (pct) pct.style.display = 'none';
+                    }, 500);
                 };
 
                 img.onerror = () => {
-                    placeholder.textContent = `❌ #${i+1}`;
-                    placeholder.style.color = '#ff4757';
+                    clearInterval(interval);
+                    previewDiv.innerHTML = `<span style="color:#ff4757;">❌ Failed to load image ${i+1}</span>`;
                 };
 
-                // Small delay between calls to avoid rate-limit
-                await new Promise(r => setTimeout(r, 300));
+                // Small delay between each image generation
+                await new Promise(r => setTimeout(r, 400));
             }
 
-            logLine(`<span class="green">✓ ${count} images generated.</span>`);
+            // Add a summary message
+            addMessage(`✅ Generated ${count} image${count>1?'s':''}.`, 'ai');
 
             // Re-enable UI
             generateBtn.disabled = false;
             promptInput.disabled = false;
+            promptInput.value = '';
             promptInput.focus();
         }
 
@@ -473,11 +553,11 @@
             try {
                 model = await pipeline('text2text-generation', 'Xenova/flan-t5-small');
                 modelReady = true;
-                modelStatus.textContent = '✓ ready';
+                modelStatus.textContent = '✅ ready';
                 modelStatus.className = 'model-status ready';
                 promptInput.disabled = false;
                 generateBtn.disabled = false;
-                logLine(`<span class="green">✓ AI model loaded.</span>`);
+                addMessage('🧠 AI model loaded successfully.', 'ai');
             } catch (e) {
                 console.warn('Model failed, using local enhancer.', e);
                 modelReady = false;
@@ -485,11 +565,11 @@
                 modelStatus.className = 'model-status failed';
                 promptInput.disabled = false;
                 generateBtn.disabled = false;
-                logLine(`<span class="yellow">⚠️ AI model failed. Using local enhancer.</span>`);
+                addMessage('⚠️ AI model failed. Using local enhancer (still works).', 'ai');
             }
         }
 
-        // ---- Events ----
+        // ---- Event listeners ----
         generateBtn.addEventListener('click', generateImages);
         promptInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') generateImages();
@@ -497,11 +577,6 @@
 
         // ---- Init ----
         loadModel();
-
-        // Add a clear button (optional) — double-click terminal to clear
-        terminal.addEventListener('dblclick', () => {
-            terminal.innerHTML = `<div class="line dim">⧩ Cleared.</div>`;
-        });
     </script>
 </body>
 </html>
