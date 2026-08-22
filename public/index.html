@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Image Gen — Chat</title>
+    <title>AI Image Gen — Plan & Build</title>
     <style>
         * {
             margin: 0;
@@ -37,6 +37,32 @@
             color: #7c5cfc;
             font-weight: 700;
         }
+        .topbar .mode-toggle {
+            display: flex;
+            gap: 4px;
+            background: #0a0a1a;
+            border-radius: 30px;
+            padding: 4px;
+        }
+        .topbar .mode-toggle button {
+            background: transparent;
+            border: none;
+            padding: 6px 18px;
+            border-radius: 30px;
+            color: #888;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .topbar .mode-toggle button.active {
+            background: #7c5cfc;
+            color: #fff;
+            box-shadow: 0 0 20px #7c5cfc66;
+        }
+        .topbar .mode-toggle button:hover:not(.active) {
+            color: #eee;
+        }
         .topbar .model-status {
             font-size: 0.75rem;
             color: #666;
@@ -46,24 +72,15 @@
         .topbar .model-status.ready { color: #2ed573; }
         .topbar .model-status.loading { color: #feca57; }
         .topbar .model-status.failed { color: #ff4757; }
-        .topbar select {
-            background: #1e1e32;
+        .topbar .shortcut-hint {
+            font-size: 0.7rem;
+            color: #555;
             border: 1px solid #2a2a42;
-            color: #eee;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            outline: none;
-        }
-        .topbar select:focus {
-            border-color: #7c5cfc;
-        }
-        .topbar .count-label {
-            font-size: 0.8rem;
-            color: #888;
+            padding: 2px 10px;
+            border-radius: 20px;
         }
 
-        /* ---- MAIN PANEL (chat + gallery) ---- */
+        /* ---- MAIN PANEL ---- */
         .main {
             display: flex;
             flex: 1;
@@ -91,18 +108,10 @@
             gap: 12px;
             scroll-behavior: smooth;
         }
-        .chat-messages::-webkit-scrollbar {
-            width: 5px;
-        }
-        .chat-messages::-webkit-scrollbar-track {
-            background: #0f0f1a;
-        }
-        .chat-messages::-webkit-scrollbar-thumb {
-            background: #2a2a42;
-            border-radius: 10px;
-        }
+        .chat-messages::-webkit-scrollbar { width: 5px; }
+        .chat-messages::-webkit-scrollbar-track { background: #0f0f1a; }
+        .chat-messages::-webkit-scrollbar-thumb { background: #2a2a42; border-radius: 10px; }
 
-        /* Chat bubbles */
         .message {
             max-width: 85%;
             padding: 10px 16px;
@@ -130,9 +139,6 @@
             gap: 8px;
             align-items: center;
         }
-        .message .meta .seed {
-            color: #555;
-        }
         .message .image-preview {
             margin-top: 10px;
             border-radius: 12px;
@@ -147,8 +153,6 @@
             border: 1px solid #2a2a42;
             display: block;
         }
-
-        /* Progress bar inside AI message */
         .progress-wrap {
             width: 100%;
             height: 6px;
@@ -175,13 +179,11 @@
             66% { content: '..'; }
             100% { content: '...'; }
         }
-
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(6px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Chat input */
         .chat-input {
             padding: 12px 16px;
             background: #0f0f1a;
@@ -200,12 +202,8 @@
             font-size: 0.95rem;
             outline: none;
         }
-        .chat-input input:focus {
-            border-color: #7c5cfc;
-        }
-        .chat-input input:disabled {
-            opacity: 0.4;
-        }
+        .chat-input input:focus { border-color: #7c5cfc; }
+        .chat-input input:disabled { opacity: 0.4; }
         .chat-input button {
             background: #7c5cfc;
             border: none;
@@ -229,7 +227,7 @@
             cursor: not-allowed;
         }
 
-        /* RIGHT: Gallery */
+        /* ---- RIGHT: Gallery ---- */
         .gallery {
             flex: 1;
             min-width: 150px;
@@ -244,16 +242,9 @@
             align-content: start;
             border: 1px solid #1a1a2e;
         }
-        .gallery::-webkit-scrollbar {
-            width: 5px;
-        }
-        .gallery::-webkit-scrollbar-track {
-            background: #0f0f1a;
-        }
-        .gallery::-webkit-scrollbar-thumb {
-            background: #2a2a42;
-            border-radius: 10px;
-        }
+        .gallery::-webkit-scrollbar { width: 5px; }
+        .gallery::-webkit-scrollbar-track { background: #0f0f1a; }
+        .gallery::-webkit-scrollbar-thumb { background: #2a2a42; border-radius: 10px; }
         .gallery .img-wrap {
             position: relative;
             border-radius: 8px;
@@ -277,7 +268,6 @@
             font-size: 0.6rem;
             padding: 2px 8px;
             border-radius: 4px;
-            backdrop-filter: blur(2px);
         }
         .gallery .img-wrap .placeholder {
             width: 100%;
@@ -297,19 +287,9 @@
             grid-column: 1 / -1;
         }
 
-        /* ---- RESPONSIVE ---- */
         @media (max-width: 640px) {
-            .main {
-                flex-direction: column;
-            }
-            .gallery {
-                max-width: none;
-                max-height: 200px;
-                grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-            }
-            .topbar .count-label {
-                display: none;
-            }
+            .main { flex-direction: column; }
+            .gallery { max-width: none; max-height: 200px; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
         }
     </style>
 </head>
@@ -318,19 +298,11 @@
     <!-- TOP BAR -->
     <div class="topbar">
         <h1>🎨 Image Gen</h1>
-        <span class="count-label">Count:</span>
-        <select id="countSelect">
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3" selected>3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
-            <option value="6">6</option>
-            <option value="7">7</option>
-            <option value="8">8</option>
-            <option value="9">9</option>
-            <option value="10">10</option>
-        </select>
+        <div class="mode-toggle" id="modeToggle">
+            <button class="active" data-mode="plan">📝 Plan</button>
+            <button data-mode="build">⚡ Build</button>
+        </div>
+        <span class="shortcut-hint">Tab</span>
         <span class="model-status" id="modelStatus">⏳ loading...</span>
     </div>
 
@@ -340,12 +312,14 @@
         <div class="chat">
             <div class="chat-messages" id="chatMessages">
                 <div class="message ai">
-                    👋 Welcome! Enter a prompt and I'll generate images.
+                    👋 Welcome!<br>
+                    <strong>Plan mode</strong> – discuss ideas.<br>
+                    <strong>Build mode</strong> – say "Generate X images of Y" to create.
                 </div>
             </div>
             <div class="chat-input">
-                <input type="text" id="promptInput" placeholder="Describe an image..." disabled />
-                <button id="generateBtn" disabled>Generate</button>
+                <input type="text" id="promptInput" placeholder="Type a message..." disabled />
+                <button id="generateBtn" disabled>Send</button>
             </div>
         </div>
 
@@ -372,14 +346,17 @@
         // ---- DOM refs ----
         const promptInput = document.getElementById('promptInput');
         const generateBtn = document.getElementById('generateBtn');
-        const countSelect = document.getElementById('countSelect');
         const modelStatus = document.getElementById('modelStatus');
         const chatMessages = document.getElementById('chatMessages');
         const gallery = document.getElementById('gallery');
+        const modeButtons = document.querySelectorAll('#modeToggle button');
 
+        // ---- State ----
         let model = null;
         let modelReady = false;
-        let imageCount = 0; // for badge numbers
+        let currentMode = 'plan'; // 'plan' or 'build'
+        let conversationHistory = []; // [{role, content}]
+        let imageCount = 0;
 
         // ---- Helpers ----
         function addMessage(text, type, extra = '') {
@@ -403,9 +380,7 @@
             badge.className = 'badge';
             badge.textContent = `#${index}`;
             wrap.appendChild(badge);
-            // Click to open full-size
             img.addEventListener('click', () => window.open(url, '_blank'));
-            // Insert at the beginning (latest first)
             gallery.insertBefore(wrap, gallery.firstChild);
         }
 
@@ -431,116 +406,167 @@
             return e;
         }
 
-        // ---- AI rewrite ----
-        async function rewriteWithAI(raw) {
-            if (!modelReady || !model) return enhanceLocally(raw);
-            const instruction =
-                `Rewrite this prompt for an AI image generator to produce a highly realistic photograph. Add details about lighting, composition, texture, and color. Avoid surreal, abstract, or distorted elements. Output only the rewritten prompt: "${raw}"`;
+        // ---- AI rewrite/discussion ----
+        async function callModel(promptText) {
+            if (!modelReady || !model) {
+                // Fallback response
+                return `[Model not loaded] I would discuss: "${promptText}" but I'm in fallback mode.`;
+            }
             try {
-                const result = await model(instruction, { max_new_tokens: 100, temperature: 0.6 });
-                let rewritten = result[0]?.generated_text || raw;
-                if (rewritten.includes(raw) && rewritten.length > raw.length + 20) {
-                    const parts = rewritten.split(raw);
-                    if (parts.length > 1) rewritten = parts[1].trim();
-                }
-                if (!rewritten || rewritten.length < 3) rewritten = enhanceLocally(raw);
-                return rewritten;
+                const result = await model(promptText, { max_new_tokens: 150, temperature: 0.7 });
+                return result[0]?.generated_text || promptText;
             } catch {
-                return enhanceLocally(raw);
+                return `[Error] Could not generate response.`;
             }
         }
 
-        // ---- Generate images ----
-        async function generateImages() {
-            const raw = promptInput.value.trim();
-            if (!raw) { alert('Please enter a prompt.'); return; }
-            const count = parseInt(countSelect.value) || 3;
+        // ---- Build mode: parse and generate ----
+        async function handleBuildMode(userMessage) {
+            // Check for "Generate X images of Y"
+            const regex = /generate\s+(\d+)\s+images?\s+of\s+(.+)/i;
+            const match = userMessage.match(regex);
+            if (!match) {
+                addMessage('ℹ️ Please say something like: "Generate 3 images of a cat"', 'ai');
+                return;
+            }
+            const count = parseInt(match[1]);
+            const subject = match[2].trim();
+            if (count < 1 || count > 10) {
+                addMessage('⚠️ Please specify a number between 1 and 10.', 'ai');
+                return;
+            }
+
+            // Build a prompt using previous conversation context
+            let context = '';
+            if (conversationHistory.length > 0) {
+                const lastFew = conversationHistory.slice(-4);
+                context = lastFew.map(msg => `${msg.role}: ${msg.content}`).join('\n');
+            }
+            const instruction = `Based on the following conversation, generate a detailed image prompt for the subject: "${subject}". Include all discussed elements. Output only the prompt.`;
+            const fullPrompt = context ? `Conversation:\n${context}\n\n${instruction}` : instruction;
+
+            // Get enhanced prompt from model or local
+            let enhanced;
+            if (modelReady && model) {
+                try {
+                    const result = await model(fullPrompt, { max_new_tokens: 100, temperature: 0.6 });
+                    enhanced = result[0]?.generated_text || enhanceLocally(subject);
+                } catch {
+                    enhanced = enhanceLocally(subject);
+                }
+            } else {
+                enhanced = enhanceLocally(subject);
+            }
+
+            // Show the enhanced prompt
+            addMessage(`🔍 Using enhanced prompt: "${enhanced}"`, 'ai');
+
+            // Generate images
+            const baseUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhanced)}?width=512&height=512&nologo=true`;
+
+            for (let i = 0; i < count; i++) {
+                const seed = Math.floor(Math.random() * 1000000);
+                const url = `${baseUrl}&seed=${seed}&_=${Date.now() + i}`;
+
+                const imgMsg = document.createElement('div');
+                imgMsg.className = 'message ai';
+                imgMsg.innerHTML = `
+                    <div>🖼️ Generating image ${i+1}/${count} <span style="font-size:0.7rem;color:#666;">(seed: ${seed})</span></div>
+                    <div class="progress-wrap"><div class="progress-bar" id="prog-${i}"></div></div>
+                    <div style="font-size:0.8rem;color:#888;" id="pct-${i}">0%</div>
+                    <div class="image-preview" id="prev-${i}"></div>
+                `;
+                chatMessages.appendChild(imgMsg);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                const progressBar = document.getElementById(`prog-${i}`);
+                const pctEl = document.getElementById(`pct-${i}`);
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += Math.random() * 6 + 2;
+                    if (progress > 100) progress = 100;
+                    progressBar.style.width = progress + '%';
+                    if (pctEl) pctEl.textContent = Math.round(progress) + '%';
+                    if (progress >= 100) clearInterval(interval);
+                }, 80);
+
+                const previewDiv = document.getElementById(`prev-${i}`);
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = `Image ${i+1}`;
+                img.onload = () => {
+                    clearInterval(interval);
+                    progressBar.style.width = '100%';
+                    if (pctEl) pctEl.textContent = '100%';
+                    previewDiv.innerHTML = '';
+                    previewDiv.appendChild(img);
+                    imageCount++;
+                    addImageToGallery(url, imageCount);
+                    setTimeout(() => {
+                        const wrap = imgMsg.querySelector('.progress-wrap');
+                        if (wrap) wrap.style.display = 'none';
+                        const pct = imgMsg.querySelector('div[style*="font-size:0.8rem"]');
+                        if (pct) pct.style.display = 'none';
+                    }, 500);
+                };
+                img.onerror = () => {
+                    clearInterval(interval);
+                    previewDiv.innerHTML = `<span style="color:#ff4757;">❌ Failed</span>`;
+                };
+
+                // Delay between calls
+                await new Promise(r => setTimeout(r, 400));
+            }
+
+            addMessage(`✅ Generated ${count} image${count>1?'s':''}.`, 'ai');
+        }
+
+        // ---- Main send function ----
+        async function sendMessage() {
+            const text = promptInput.value.trim();
+            if (!text) return;
 
             // Disable UI
             generateBtn.disabled = true;
             promptInput.disabled = true;
 
             // Add user message
-            addMessage(`💬 ${raw}`, 'user');
+            addMessage(text, 'user');
+            conversationHistory.push({ role: 'user', content: text });
 
-            // Add AI initial response
-            const aiMsg = addMessage(`⏳ Thinking...`, 'ai');
-
-            // Rewrite
-            const enhanced = await rewriteWithAI(raw);
-            aiMsg.innerHTML = `🔍 <strong>Enhanced prompt:</strong><br>${enhanced}`;
-
-            // Add a new AI message for each image
-            for (let i = 0; i < count; i++) {
-                const seed = Math.floor(Math.random() * 1000000);
-                const url =
-                    `https://image.pollinations.ai/prompt/${encodeURIComponent(enhanced)}?width=512&height=512&nologo=true&seed=${seed}&_=${Date.now() + i}`;
-
-                // Create a message for this image
-                const imgMsg = document.createElement('div');
-                imgMsg.className = 'message ai';
-                imgMsg.innerHTML = `
-                    <div>🖼️ Generating image ${i+1}/${count} <span class="seed">(seed: ${seed})</span></div>
-                    <div class="progress-wrap"><div class="progress-bar" id="progress-${i}"></div></div>
-                    <div style="font-size:0.8rem;color:#888;">0%</div>
-                    <div class="image-preview" id="preview-${i}"></div>
-                `;
-                chatMessages.appendChild(imgMsg);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-
-                // Simulate progress (0-100 over ~3 seconds)
-                const progressBar = document.getElementById(`progress-${i}`);
-                const progressText = imgMsg.querySelector('div:last-child'); // the percentage div
-                let progress = 0;
-                const interval = setInterval(() => {
-                    progress += Math.random() * 6 + 2;
-                    if (progress > 100) progress = 100;
-                    progressBar.style.width = progress + '%';
-                    if (progressText) progressText.textContent = Math.round(progress) + '%';
-                    if (progress >= 100) clearInterval(interval);
-                }, 80);
-
-                // Load image
-                const previewDiv = document.getElementById(`preview-${i}`);
-                const img = document.createElement('img');
-                img.src = url;
-                img.alt = `Image ${i+1}`;
-
-                img.onload = () => {
-                    clearInterval(interval);
-                    progressBar.style.width = '100%';
-                    if (progressText) progressText.textContent = '100%';
-                    previewDiv.innerHTML = '';
-                    previewDiv.appendChild(img);
-                    // Add to gallery
-                    imageCount++;
-                    addImageToGallery(url, imageCount);
-                    // Remove progress bar and text after a moment
-                    setTimeout(() => {
-                        const progWrap = imgMsg.querySelector('.progress-wrap');
-                        if (progWrap) progWrap.style.display = 'none';
-                        const pct = imgMsg.querySelector('div[style*="font-size:0.8rem"]');
-                        if (pct) pct.style.display = 'none';
-                    }, 500);
-                };
-
-                img.onerror = () => {
-                    clearInterval(interval);
-                    previewDiv.innerHTML = `<span style="color:#ff4757;">❌ Failed to load image ${i+1}</span>`;
-                };
-
-                // Small delay between each image generation
-                await new Promise(r => setTimeout(r, 400));
+            if (currentMode === 'plan') {
+                // Plan mode: discuss
+                const discussionPrompt = `The user said: "${text}". As an AI assistant, discuss ideas for an image based on this. Suggest elements, composition, lighting, style, and ask clarifying questions. Keep it conversational.`;
+                const response = await callModel(discussionPrompt);
+                addMessage(response, 'ai');
+                conversationHistory.push({ role: 'assistant', content: response });
+            } else {
+                // Build mode
+                await handleBuildMode(text);
+                // The build mode adds its own messages and updates history? We don't push the AI generation responses to history because they are large. We can push a summary.
+                // We'll push a summary of what was generated.
+                conversationHistory.push({ role: 'assistant', content: `Generated images for: "${text}"` });
             }
 
-            // Add a summary message
-            addMessage(`✅ Generated ${count} image${count>1?'s':''}.`, 'ai');
-
-            // Re-enable UI
+            // Re-enable
             generateBtn.disabled = false;
             promptInput.disabled = false;
             promptInput.value = '';
             promptInput.focus();
+        }
+
+        // ---- Mode switching ----
+        function setMode(mode) {
+            currentMode = mode;
+            modeButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+            // Update input placeholder
+            if (mode === 'plan') {
+                promptInput.placeholder = '💬 Discuss your image idea...';
+            } else {
+                promptInput.placeholder = '⚡ Generate 3 images of a cat';
+            }
         }
 
         // ---- Load model ----
@@ -557,9 +583,9 @@
                 modelStatus.className = 'model-status ready';
                 promptInput.disabled = false;
                 generateBtn.disabled = false;
-                addMessage('🧠 AI model loaded successfully.', 'ai');
+                addMessage('🧠 AI model loaded.', 'ai');
             } catch (e) {
-                console.warn('Model failed, using local enhancer.', e);
+                console.warn('Model failed, using local fallback.', e);
                 modelReady = false;
                 modelStatus.textContent = '⚠️ local mode';
                 modelStatus.className = 'model-status failed';
@@ -570,12 +596,33 @@
         }
 
         // ---- Event listeners ----
-        generateBtn.addEventListener('click', generateImages);
+        generateBtn.addEventListener('click', sendMessage);
         promptInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') generateImages();
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Mode toggle buttons
+        modeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                setMode(btn.dataset.mode);
+            });
+        });
+
+        // Tab key to toggle mode
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const newMode = currentMode === 'plan' ? 'build' : 'plan';
+                setMode(newMode);
+                // Also update active button visually
+                modeButtons.forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.mode === newMode);
+                });
+            }
         });
 
         // ---- Init ----
+        setMode('plan');
         loadModel();
     </script>
 </body>
